@@ -460,7 +460,7 @@ function StudTab({rawData,testRoomData,testAccomData,apptData,incomingData,fS,sS
   // Incoming students snapshot
   const inWithAccom=incomingData.filter(r=>(r["Requested Accommodation"]||"").trim());
   const inApprSids=incomingData.length?new Set(inWithAccom.filter(r=>(r["_ApprovedStatus"]||"").toLowerCase()==="approved").map(r=>r["Student ID"]||r["Name"])):new Set();
-  const inHkw=["housing","emotional support animal","service animal","accessible transport"];
+  const inHkw=["housing accommodation","emotional support animal","service animal","accessible transport","single room","without suitemates","with suitemates"];
   const inAcadAppr=incomingData.length?new Set(inWithAccom.filter(r=>(r["_ApprovedStatus"]||"").toLowerCase()==="approved"&&!inHkw.some(k=>(r["Requested Accommodation"]||"").toLowerCase().includes(k))).map(r=>r["Student ID"]||r["Name"])).size:null;
   const inHousAppr=incomingData.length?new Set(inWithAccom.filter(r=>(r["_ApprovedStatus"]||"").toLowerCase()==="approved"&&inHkw.some(k=>(r["Requested Accommodation"]||"").toLowerCase().includes(k))).map(r=>r["Student ID"]||r["Name"])).size:null;
   const inTotal=incomingData.length?new Set(inWithAccom.map(r=>r["Student ID"]||r["Name"])).size:null;
@@ -1103,7 +1103,7 @@ function IncomingTab({incomingData,fS,sS}){
   };
 
   // Housing check
-  const hKw=["housing","emotional support animal","service animal","accessible transport"];
+  const hKw=["housing accommodation","emotional support animal","service animal","accessible transport","single room","without suitemates","with suitemates"];
   const isHousing=r=>hKw.some(k=>accom(r).toLowerCase().includes(k));
   const isAcademic=r=>!isHousing(r);
 
