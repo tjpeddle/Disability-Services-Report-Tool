@@ -61,7 +61,7 @@ function isA(a){return a&&!isH(a)}
 function cHN(n){return n?(n.replace(/Housing Accommodation\/?/gi,"").replace(/^\//,"").trim()||n):""}
 
 function bSum(data,fS,sS,cFn){
-  const acc={};data.forEach(r=>{const raw=r["Requested Accommodation"]||"";const a=cFn?cFn(raw):raw;const st=(r["Approved"]||"").toLowerCase();const sem=r["Semester (course)"]||"";const sid=r["Student ID"];if(!a)return;
+  const acc={};data.forEach(r=>{const raw=r["Requested Accommodation"]||"";const a=cFn?cFn(raw):raw;const st=(r["Approved"]||"").toLowerCase();const sem=r["Semester (course)"]||"";const sid=r["Student ID"]||r["Name"];if(!a)return;
     if(!acc[a])acc[a]={name:a,fA:new Set(),fD:new Set(),sA:new Set(),sD:new Set(),tot:new Set(),yA:new Set(),yD:new Set()};
     const x=acc[a];x.tot.add(sid);if(sem===fS){if(st==="approved")x.fA.add(sid);else if(st==="denied")x.fD.add(sid)}if(sem===sS){if(st==="approved")x.sA.add(sid);else if(st==="denied")x.sD.add(sid)}if(st==="approved")x.yA.add(sid);else if(st==="denied")x.yD.add(sid)});
   return Object.values(acc).map(a=>({name:a.name,fallApproved:a.fA.size,fallDenied:a.fD.size,springApproved:a.sA.size,springDenied:a.sD.size,totalUnique:a.tot.size,calApproved:a.yA.size,calDenied:a.yD.size})).sort((a,b)=>b.totalUnique-a.totalUnique);
@@ -127,7 +127,7 @@ function ImportTab({rawData,setRawData,testRoomData,setTestRoomData,iSt,setISt,l
 
 function ExecTab({rawData,testRoomData,fS,sS,suS}){
   if(!rawData.length)return<Empty/>;
-  const us=new Set(rawData.map(r=>r["Student ID"])).size;const ap=rawData.filter(r=>(r["Approved"]||"").toLowerCase()==="approved").length;const dn=rawData.filter(r=>(r["Approved"]||"").toLowerCase()==="denied").length;
+  const us=new Set(rawData.map(r=>r["Student ID"]||r["Name"])).size;const ap=rawData.filter(r=>(r["Approved"]||"").toLowerCase()==="approved").length;const dn=rawData.filter(r=>(r["Approved"]||"").toLowerCase()==="denied").length;
   return(<div className="fade-up"><h2 style={{fontSize:26,fontWeight:800,marginBottom:24}}>Executive Summary</h2>
     <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:14,marginBottom:28}}>
       <SC label="Unique Students" value={us}/><SC label="Total Records" value={rawData.length} color={CO.purple}/><SC label="Approved" value={ap} color={CO.green} sub={`${(ap/(ap+dn)*100).toFixed(1)}%`}/><SC label="Denied" value={dn} color={CO.red}/>
@@ -138,7 +138,7 @@ function AT({summary,vm}){return(<div style={{background:CO.card,borderRadius:14
 function AcadTab({rawData,fS,sS}){const[vm,sVM]=useState("semester");const s=useMemo(()=>bSum(rawData.filter(r=>isA(r["Requested Accommodation"])),fS,sS,null),[rawData,fS,sS]);if(!rawData.length)return<Empty/>;return(<div className="fade-up"><div style={{display:"flex",justifyContent:"space-between",marginBottom:24}}><h2 style={{fontSize:26,fontWeight:800}}>Academic Accommodations</h2><div style={{display:"flex",gap:8}}><button className={`btn ${vm==="semester"?"btn-primary":"btn-outline"}`} onClick={()=>sVM("semester")}>Semester</button><button className={`btn ${vm==="calendar"?"btn-primary":"btn-outline"}`} onClick={()=>sVM("calendar")}>Year</button></div></div><AT summary={s} vm={vm}/></div>)}
 function HousingTab({rawData,fS,sS}){const[vm,sVM]=useState("semester");const s=useMemo(()=>bSum(rawData.filter(r=>isH(r["Requested Accommodation"])),fS,sS,cHN),[rawData,fS,sS]);if(!rawData.length)return<Empty/>;return(<div className="fade-up"><div style={{display:"flex",justifyContent:"space-between",marginBottom:24}}><h2 style={{fontSize:26,fontWeight:800}}>Housing Report</h2><div style={{display:"flex",gap:8}}><button className={`btn ${vm==="semester"?"btn-primary":"btn-outline"}`} onClick={()=>sVM("semester")}>Semester</button><button className={`btn ${vm==="calendar"?"btn-primary":"btn-outline"}`} onClick={()=>sVM("calendar")}>Year</button></div></div><AT summary={s} vm={vm}/></div>)}
 function TestTab({testRoomData,fS,sS}){if(!testRoomData.length)return<Empty msg="Import test room data."/>;const ft=testRoomData.filter(r=>r["Semester"]===fS).length,st=testRoomData.filter(r=>r["Semester"]===sS).length;return(<div className="fade-up"><h2 style={{fontSize:26,fontWeight:800,marginBottom:24}}>Test Room Bookings</h2><div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:14}}><SC label="Total" value={testRoomData.length} color={CO.yellow}/><SC label={fS} value={ft} color={CO.orange}/><SC label={sS} value={st} color={CO.green}/><SC label="Unique Students" value={new Set(testRoomData.map(r=>r["Student"])).size}/></div></div>)}
-function StudTab({rawData,fS,sS,suS}){if(!rawData.length)return<Empty/>;const bE=(sf)=>{const c={},s=new Set();(sf?rawData.filter(r=>r["Semester (course)"]===sf):rawData).forEach(r=>{const sid=r["Student ID"],cl=normCL(r["Class Level"]),k=sf?`${sid}_${cl}`:sid;if(s.has(k))return;s.add(k);c[cl]=(c[cl]||0)+1});return c};const all=bE(null),fe=bE(fS),se=bE(sS),sue=bE(suS);const lvls=[...new Set([...UG,"Graduate","Doctoral","Alumni","Exchange Program","Incominggr",...Object.keys(all)])];const tot=o=>Object.values(o).reduce((a,b)=>a+b,0);
+function StudTab({rawData,fS,sS,suS}){if(!rawData.length)return<Empty/>;const bE=(sf)=>{const c={},s=new Set();(sf?rawData.filter(r=>r["Semester (course)"]===sf):rawData).forEach(r=>{const sid=r["Student ID"]||r["Name"],cl=normCL(r["Class Level"]),k=sf?`${sid}_${cl}`:sid;if(s.has(k))return;s.add(k);c[cl]=(c[cl]||0)+1});return c};const all=bE(null),fe=bE(fS),se=bE(sS),sue=bE(suS);const lvls=[...new Set([...UG,"Graduate","Doctoral","Alumni","Exchange Program","Incominggr",...Object.keys(all)])];const tot=o=>Object.values(o).reduce((a,b)=>a+b,0);
   return(<div className="fade-up"><h2 style={{fontSize:26,fontWeight:800,marginBottom:24}}>Student Enrollment</h2><div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:14,marginBottom:24}}><SC label="Total" value={tot(all)}/><SC label={fS} value={tot(fe)} color={CO.orange}/><SC label={sS} value={tot(se)} color={CO.green}/><SC label={suS} value={tot(sue)} color={CO.yellow}/></div>
     <div style={{background:CO.card,borderRadius:14,border:`1px solid ${CO.border}`,overflow:"hidden"}}><div style={{overflow:"auto"}}><table><thead><tr><th>Class Level</th><th style={{textAlign:"right"}}>Fall</th><th style={{textAlign:"right"}}>Spring</th><th style={{textAlign:"right"}}>Summer</th><th style={{textAlign:"right"}}>All</th></tr></thead><tbody>{lvls.filter(cl=>all[cl]).map(cl=><tr key={cl}><td>{cl}</td><td style={{textAlign:"right"}}>{fe[cl]||0}</td><td style={{textAlign:"right"}}>{se[cl]||0}</td><td style={{textAlign:"right"}}>{sue[cl]||0}</td><td style={{textAlign:"right",fontWeight:700}}>{all[cl]||0}</td></tr>)}<tr style={{background:`${CO.accent}0c`}}><td style={{fontWeight:700}}>TOTAL</td><td style={{textAlign:"right",fontWeight:700}}>{tot(fe)}</td><td style={{textAlign:"right",fontWeight:700}}>{tot(se)}</td><td style={{textAlign:"right",fontWeight:700}}>{tot(sue)}</td><td style={{textAlign:"right",fontWeight:700,color:CO.accent}}>{tot(all)}</td></tr></tbody></table></div></div></div>)}
 function ExpTab({rawData,fS,sS}){if(!rawData.length)return<Empty msg="Import data first."/>;
@@ -178,15 +178,15 @@ function GenReportTab({rawData,testRoomData,fS,sS,suS,academicYear}){
   const[genStatus,setGS]=useState(null);
   const[progress,setProg]=useState("");
 
-  const us=rawData.length?new Set(rawData.map(r=>r["Student ID"])).size:0;
+  const us=rawData.length?new Set(rawData.map(r=>r["Student ID"]||r["Name"])).size:0;
   const ap=rawData.filter(r=>(r["Approved"]||"").toLowerCase()==="approved").length;
   const dn=rawData.filter(r=>(r["Approved"]||"").toLowerCase()==="denied").length;
-  const fs=new Set(rawData.filter(r=>r["Semester (course)"]===fS).map(r=>r["Student ID"])).size;
-  const ss=new Set(rawData.filter(r=>r["Semester (course)"]===sS).map(r=>r["Student ID"])).size;
+  const fs=new Set(rawData.filter(r=>r["Semester (course)"]===fS).map(r=>r["Student ID"]||r["Name"])).size;
+  const ss=new Set(rawData.filter(r=>r["Semester (course)"]===sS).map(r=>r["Student ID"]||r["Name"])).size;
   const allAcad=useMemo(()=>bSum(rawData.filter(r=>isA(r["Requested Accommodation"])),fS,sS,null),[rawData,fS,sS]);
   const allHous=useMemo(()=>bSum(rawData.filter(r=>isH(r["Requested Accommodation"])),fS,sS,cHN),[rawData,fS,sS]);
   const ft=testRoomData.filter(r=>r["Semester"]===fS).length;const st=testRoomData.filter(r=>r["Semester"]===sS).length;
-  const clC=useMemo(()=>{const c={},s=new Set();rawData.forEach(r=>{const sid=r["Student ID"];if(s.has(sid))return;s.add(sid);const cl=normCL(r["Class Level"]);c[cl]=(c[cl]||0)+1});return c},[rawData]);
+  const clC=useMemo(()=>{const c={},s=new Set();rawData.forEach(r=>{const sid=r["Student ID"]||r["Name"];if(s.has(sid))return;s.add(sid);const cl=normCL(r["Class Level"]);c[cl]=(c[cl]||0)+1});return c},[rawData]);
   const clL=Object.keys(clC).sort((a,b)=>clC[b]-clC[a]);
 
   const dOpts=(c)=>c.type==="bar"?{plugins:{legend:{display:false}},scales:{x:{grid:{display:false}},y:{beginAtZero:true}}}:{cutout:c.type==="doughnut"?"60%":"0%",plugins:{legend:{position:"bottom"}}};
