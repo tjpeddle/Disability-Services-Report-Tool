@@ -201,29 +201,51 @@ function SummaryPanel({panel,onClose,fS,sS}){
 }
 
 /* ═══ IMPORT TAB ═══ */
-function ImportTab({rawData,setRawData,testRoomData,setTestRoomData,iSt,setISt,ld,setLd}){
-  const rR=useRef(),tR=useRef();
+function ImportTab({rawData,setRawData,testRoomData,setTestRoomData,testAccomData,setTestAccomData,apptData,setApptData,caseNotesData,setCaseNotesData,studentNotesData,setStudentNotesData,iSt,setISt,ld,setLd}){
+  const rR=useRef(),tR=useRef(),taR=useRef(),aR=useRef(),cnR=useRef(),snR=useRef();
   const handle=async(e,type)=>{const file=e.target.files[0];if(!file)return;setLd(true);try{const data=await parseFile(file);
-    const norm=data.map(row=>{const r={};Object.keys(row).forEach(k=>{r[k.trim()]=typeof row[k]==="string"?row[k].trim():row[k]});return r}).filter(r=>type==="raw"?(r["Name"]||r["Student ID"]):r["Student"]);
-    if(type==="raw")setRawData(norm);else setTestRoomData(norm);setISt(s=>({...s,[type]:{ok:true,ct:norm.length,fn:file.name}}));}catch(err){setISt(s=>({...s,[type]:{ok:false,err:err.message}}))}setLd(false)};
+    const norm=data.map(row=>{const r={};Object.keys(row).forEach(k=>{r[k.trim()]=typeof row[k]==="string"?row[k].trim():String(row[k]??'').trim()});return r});
+    const filtered=norm.filter(r=>{
+      if(type==="test")return r["Student"];
+      if(type==="appt")return r["Symplicity Student ID"]||r["Student ID"];
+      if(type==="casenotes")return r["Symplicity Student ID"]||r["Name of Specialist"];
+      if(type==="studentnotes")return r["Symplicity Student ID"]||r["Created By (Student)"];
+      return r["Name"]||r["Student ID"];
+    });
+    if(type==="raw")setRawData(filtered);
+    else if(type==="test")setTestRoomData(filtered);
+    else if(type==="testaccom")setTestAccomData(filtered);
+    else if(type==="appt")setApptData(filtered);
+    else if(type==="casenotes")setCaseNotesData(filtered);
+    else setStudentNotesData(filtered);
+    setISt(s=>({...s,[type]:{ok:true,ct:filtered.length,fn:file.name}}));}catch(err){setISt(s=>({...s,[type]:{ok:false,err:err.message}}))}setLd(false)};
+  const slots=[
+    {t:"raw",ref:rR,col:CO.accent,icon:"◎",title:"Academic & Housing Accommodations",cols:"Name, Student ID, Class Level, Requested Accommodation, Approved, Semester (course)"},
+    {t:"testaccom",ref:taR,col:CO.orange,icon:"✎",title:"Testing Accommodations",cols:"Name, Student ID, Class Level, Requested Accommodation, Approved, Semester (course)"},
+    {t:"test",ref:tR,col:CO.purple,icon:"📋",title:"Test Room Bookings",cols:"Student, Course (Object), Exam, Appointment Cancelled, Semester"},
+    {t:"appt",ref:aR,col:"#22c5c5",icon:"🤝",title:"Direct Service Appointments",cols:"Symplicity Student ID, Appointment Type, AppointmentDate, Appointment Length, Staff, Appointment Cancelled"},
+    {t:"casenotes",ref:cnR,col:"#c57a22",icon:"📝",title:"Case Notes (Indirect Contacts)",cols:"Name of Specialist, Category (Case), Symplicity Student ID, Duration (Case), Created"},
+    {t:"studentnotes",ref:snR,col:"#c522a0",icon:"🗒️",title:"Student Notes (Indirect Contacts)",cols:"Symplicity Student ID, Category (Student), Date Created (Student), Created By (Student), Duration (Student)"},
+  ];
   return(<div className="fade-up">
     <h2 style={{fontSize:26,fontWeight:800,marginBottom:8}}>Import Your Data</h2>
-    <p style={{color:CO.muted,marginBottom:32}}>Upload .xlsx, .xlsm, .xls, or .csv files.</p>
-    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:24,maxWidth:920}}>
-      {[{t:"raw",ref:rR,icon:"↑",col:CO.accent,title:"Raw Accommodation Data",cols:"Name, Student ID, Class Level, Requested Accommodation, Approved, Semester (course)"},
-        {t:"test",ref:tR,icon:"✎",col:CO.purple,title:"Test Room Bookings",cols:"Student, Course (Object), Exam, Appointment Cancelled, Semester"}
-      ].map(c=>(<div key={c.t} style={{background:CO.card,borderRadius:14,border:`1px solid ${CO.border}`,padding:28}}>
-          <h3 style={{fontSize:16,fontWeight:700,marginBottom:12}}>{c.icon} {c.title}</h3>
-          <p style={{fontSize:12.5,color:CO.muted,marginBottom:18}}>Columns: <strong style={{color:CO.text}}>{c.cols}</strong></p>
-          <input ref={c.ref} type="file" accept=".csv,.xlsx,.xlsm,.xls" onChange={e=>handle(e,c.t)}/>
-          <button className="btn btn-primary" onClick={()=>c.ref.current.click()} style={{width:"100%",background:c.t==="test"?CO.purple:undefined}}>{ld?"Processing…":"Choose File & Import"}</button>
-          {iSt[c.t]&&<div style={{marginTop:14,padding:12,borderRadius:10,background:iSt[c.t].ok?`${CO.green}12`:`${CO.red}12`,fontSize:13}}>
-            {iSt[c.t].ok?<span style={{color:CO.green}}>✓ {iSt[c.t].ct.toLocaleString()} records from {iSt[c.t].fn}</span>:<span style={{color:CO.red}}>✗ {iSt[c.t].err}</span>}</div>}
-        </div>))}
+    <p style={{color:CO.muted,marginBottom:28}}>Upload .xlsx, .xlsm, .xls, or .csv files. Load all files for full reporting.</p>
+    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:16,maxWidth:1100}}>
+      {slots.map(c=>(<div key={c.t} style={{background:CO.card,borderRadius:14,border:`1.5px solid ${iSt[c.t]?.ok?c.col+"66":CO.border}`,padding:20}}>
+        <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:10}}>
+          <div style={{width:30,height:30,borderRadius:8,background:`${c.col}20`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:14}}>{c.icon}</div>
+          <h3 style={{fontSize:13,fontWeight:700,lineHeight:1.3}}>{c.title}</h3>
+        </div>
+        <p style={{fontSize:10.5,color:CO.muted,marginBottom:12,lineHeight:1.5}}>Columns: <strong style={{color:CO.text}}>{c.cols}</strong></p>
+        <input ref={c.ref} type="file" accept=".csv,.xlsx,.xlsm,.xls" onChange={e=>handle(e,c.t)}/>
+        <button className="btn btn-primary" onClick={()=>c.ref.current.click()} style={{width:"100%",background:c.col,fontSize:12,padding:"8px 14px"}}>{ld?"Processing…":"Choose File & Import"}</button>
+        {iSt[c.t]&&<div style={{marginTop:10,padding:8,borderRadius:8,background:iSt[c.t].ok?`${CO.green}12`:`${CO.red}12`,fontSize:11}}>
+          {iSt[c.t].ok?<span style={{color:CO.green}}>✓ {iSt[c.t].ct.toLocaleString()} records — {iSt[c.t].fn}</span>:<span style={{color:CO.red}}>✗ {iSt[c.t].err}</span>}</div>}
+      </div>))}
     </div>
-    {rawData.length>0&&<div style={{marginTop:32,background:CO.card,borderRadius:14,border:`1px solid ${CO.border}`,padding:20}}>
-      <h3 style={{fontSize:14,fontWeight:600,marginBottom:10}}>Preview (first 8 rows)</h3>
-      <div style={{overflow:"auto",maxHeight:260}}><table><thead><tr>{Object.keys(rawData[0]).slice(0,7).map(h=><th key={h}>{h}</th>)}</tr></thead>
+    {rawData.length>0&&<div style={{marginTop:24,background:CO.card,borderRadius:14,border:`1px solid ${CO.border}`,padding:18}}>
+      <h3 style={{fontSize:13,fontWeight:600,marginBottom:8}}>Preview — Academic & Housing (first 8 rows)</h3>
+      <div style={{overflow:"auto",maxHeight:220}}><table><thead><tr>{Object.keys(rawData[0]).slice(0,7).map(h=><th key={h}>{h}</th>)}</tr></thead>
       <tbody>{rawData.slice(0,8).map((r,i)=><tr key={i}>{Object.keys(rawData[0]).slice(0,7).map(h=><td key={h}>{r[h]}</td>)}</tr>)}</tbody></table></div></div>}
   </div>);
 }
@@ -238,16 +260,24 @@ function ExecTab({rawData,testRoomData,fS,sS,suS}){
 }
 
 function AT({summary,vm,onRowClick}){return(<div style={{background:CO.card,borderRadius:14,border:`1px solid ${CO.border}`,overflow:"hidden"}}><div style={{overflow:"auto",maxHeight:"65vh"}}><table><thead><tr><th style={{minWidth:300}}>Accommodation</th>{vm==="semester"?<><th style={{textAlign:"right"}}>Fall Appr</th><th style={{textAlign:"right"}}>Fall Den</th><th style={{textAlign:"right"}}>Spr Appr</th><th style={{textAlign:"right"}}>Spr Den</th></>:<><th style={{textAlign:"right"}}>Approved</th><th style={{textAlign:"right"}}>Denied</th></>}<th style={{textAlign:"right"}}>Total Unique</th><th style={{width:60}}></th></tr></thead><tbody>{summary.map((row,i)=>(<tr key={i} className="row-clickable" onClick={()=>onRowClick&&onRowClick(row)}><td style={{fontWeight:500}}>{row.name}</td>{vm==="semester"?<><td style={{textAlign:"right"}}><span className="badge badge-green">{row.fallApproved}</span></td><td style={{textAlign:"right"}}><span className="badge badge-red">{row.fallDenied}</span></td><td style={{textAlign:"right"}}><span className="badge badge-green">{row.springApproved}</span></td><td style={{textAlign:"right"}}><span className="badge badge-red">{row.springDenied}</span></td></>:<><td style={{textAlign:"right"}}><span className="badge badge-green">{row.calApproved}</span></td><td style={{textAlign:"right"}}><span className="badge badge-red">{row.calDenied}</span></td></>}<td style={{textAlign:"right",fontWeight:700,fontFamily:"'JetBrains Mono',monospace"}}>{row.totalUnique}</td><td style={{textAlign:"center",color:CO.dim,fontSize:16}}>›</td></tr>))}</tbody></table></div></div>)}
-function TotalFooter({label,uniqueAll,uniqueFall,uniqueSpring,color=CO.accent,fS,sS}){
-  return(<div style={{marginTop:16,padding:"18px 24px",borderRadius:14,background:`${color}10`,border:`1.5px solid ${color}30`,display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:12}}>
-    <div style={{display:"flex",alignItems:"center",gap:10}}>
-      <div style={{width:10,height:10,borderRadius:"50%",background:color,flexShrink:0}}/>
-      <p style={{fontSize:13.5,color:CO.muted,fontWeight:500}}>{label}</p>
+function StatBlock({label,val,color,size=22}){return(<div style={{textAlign:"center"}}><p style={{fontSize:10,color:CO.dim,textTransform:"uppercase",letterSpacing:".06em",marginBottom:2,whiteSpace:"nowrap"}}>{label}</p><p style={{fontSize:size,fontWeight:800,fontFamily:"'JetBrains Mono',monospace",color}}>{typeof val==="number"?val.toLocaleString():val}</p></div>);}
+function TotalFooter({approvedAll,approvedFall,approvedSpring,interactAll,interactFall,interactSpring,color=CO.accent,fS,sS,approvedLabel="✓ Approved — Unique Students"}){
+  return(<div style={{marginTop:16,display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+    <div style={{padding:"16px 20px",borderRadius:14,background:"#22c58d0e",border:"1.5px solid #22c58d30"}}>
+      <p style={{fontSize:11,color:CO.green,fontWeight:700,textTransform:"uppercase",letterSpacing:".06em",marginBottom:12}}>{approvedLabel}</p>
+      <div style={{display:"flex",gap:20,flexWrap:"wrap",alignItems:"flex-end"}}>
+        {approvedFall!=null&&<StatBlock label={fS} val={approvedFall} color={CO.orange}/>}
+        {approvedSpring!=null&&<StatBlock label={sS} val={approvedSpring} color={CO.green}/>}
+        <StatBlock label="Total" val={approvedAll} color={CO.green} size={30}/>
+      </div>
     </div>
-    <div style={{display:"flex",gap:24,flexWrap:"wrap"}}>
-      {uniqueFall!=null&&<div style={{textAlign:"center"}}><p style={{fontSize:10,color:CO.dim,textTransform:"uppercase",letterSpacing:".06em",marginBottom:2}}>{fS}</p><p style={{fontSize:20,fontWeight:800,fontFamily:"'JetBrains Mono',monospace",color:CO.orange}}>{uniqueFall.toLocaleString()}</p></div>}
-      {uniqueSpring!=null&&<div style={{textAlign:"center"}}><p style={{fontSize:10,color:CO.dim,textTransform:"uppercase",letterSpacing:".06em",marginBottom:2}}>{sS}</p><p style={{fontSize:20,fontWeight:800,fontFamily:"'JetBrains Mono',monospace",color:CO.green}}>{uniqueSpring.toLocaleString()}</p></div>}
-      <div style={{textAlign:"center"}}><p style={{fontSize:10,color:CO.dim,textTransform:"uppercase",letterSpacing:".06em",marginBottom:2}}>Total Unique Students</p><p style={{fontSize:28,fontWeight:800,fontFamily:"'JetBrains Mono',monospace",color}}>{uniqueAll.toLocaleString()}</p></div>
+    <div style={{padding:"16px 20px",borderRadius:14,background:`${color}0e`,border:`1.5px solid ${color}30`}}>
+      <p style={{fontSize:11,color,fontWeight:700,textTransform:"uppercase",letterSpacing:".06em",marginBottom:12}}>⇄ OARS Interactions — Unique Students</p>
+      <div style={{display:"flex",gap:20,flexWrap:"wrap",alignItems:"flex-end"}}>
+        {interactFall!=null&&<StatBlock label={fS} val={interactFall} color={CO.orange}/>}
+        {interactSpring!=null&&<StatBlock label={sS} val={interactSpring} color={CO.green}/>}
+        <StatBlock label="Total" val={interactAll} color={color} size={30}/>
+      </div>
     </div>
   </div>);
 }
@@ -255,58 +285,226 @@ function TotalFooter({label,uniqueAll,uniqueFall,uniqueSpring,color=CO.accent,fS
 function AcadTab({rawData,fS,sS}){
   const[vm,sVM]=useState("semester");const[panel,setPanel]=useState(null);
   const s=useMemo(()=>bSum(rawData.filter(r=>isA(r["Requested Accommodation"])),fS,sS,null),[rawData,fS,sS]);
-  const uniqueApprAll=useMemo(()=>new Set(rawData.filter(r=>isA(r["Requested Accommodation"])&&(r["Approved"]||"").toLowerCase()==="approved").map(r=>r["Student ID"]||r["Name"])).size,[rawData]);
-  const uniqueApprFall=useMemo(()=>new Set(rawData.filter(r=>isA(r["Requested Accommodation"])&&(r["Approved"]||"").toLowerCase()==="approved"&&r["Semester (course)"]===fS).map(r=>r["Student ID"]||r["Name"])).size,[rawData,fS]);
-  const uniqueApprSpring=useMemo(()=>new Set(rawData.filter(r=>isA(r["Requested Accommodation"])&&(r["Approved"]||"").toLowerCase()==="approved"&&r["Semester (course)"]===sS).map(r=>r["Student ID"]||r["Name"])).size,[rawData,sS]);
+  const sid=r=>r["Student ID"]||r["Name"];
+  const acadRows=useMemo(()=>rawData.filter(r=>isA(r["Requested Accommodation"])),[rawData]);
+  const apprAll=useMemo(()=>new Set(acadRows.filter(r=>(r["Approved"]||"").toLowerCase()==="approved").map(sid)).size,[acadRows]);
+  const apprFall=useMemo(()=>new Set(acadRows.filter(r=>(r["Approved"]||"").toLowerCase()==="approved"&&r["Semester (course)"]===fS).map(sid)).size,[acadRows,fS]);
+  const apprSpring=useMemo(()=>new Set(acadRows.filter(r=>(r["Approved"]||"").toLowerCase()==="approved"&&r["Semester (course)"]===sS).map(sid)).size,[acadRows,sS]);
+  const intAll=useMemo(()=>new Set(acadRows.map(sid)).size,[acadRows]);
+  const intFall=useMemo(()=>new Set(acadRows.filter(r=>r["Semester (course)"]===fS).map(sid)).size,[acadRows,fS]);
+  const intSpring=useMemo(()=>new Set(acadRows.filter(r=>r["Semester (course)"]===sS).map(sid)).size,[acadRows,sS]);
   if(!rawData.length)return<Empty/>;
   return(<div className="fade-up"><SummaryPanel panel={panel} onClose={()=>setPanel(null)} fS={fS} sS={sS}/>
     <div style={{display:"flex",justifyContent:"space-between",marginBottom:24}}><h2 style={{fontSize:26,fontWeight:800}}>Academic Accommodations</h2><div style={{display:"flex",gap:8}}><button className={`btn ${vm==="semester"?"btn-primary":"btn-outline"}`} onClick={()=>sVM("semester")}>Semester</button><button className={`btn ${vm==="calendar"?"btn-primary":"btn-outline"}`} onClick={()=>sVM("calendar")}>Year</button></div></div>
     <p style={{fontSize:13,color:CO.dim,marginBottom:12}}>Click any row to view a detailed summary ›</p>
     <AT summary={s} vm={vm} onRowClick={row=>setPanel({title:"Academic Accommodation",type:"accommodation",row})}/>
-    <TotalFooter label="Students who received at least one approved academic accommodation" uniqueAll={uniqueApprAll} uniqueFall={uniqueApprFall} uniqueSpring={uniqueApprSpring} color={CO.accent} fS={fS} sS={sS}/>
+    <TotalFooter approvedAll={apprAll} approvedFall={apprFall} approvedSpring={apprSpring} interactAll={intAll} interactFall={intFall} interactSpring={intSpring} color={CO.accent} fS={fS} sS={sS}/>
   </div>);
 }
 
 function HousingTab({rawData,fS,sS}){
   const[vm,sVM]=useState("semester");const[panel,setPanel]=useState(null);
   const s=useMemo(()=>bSum(rawData.filter(r=>isH(r["Requested Accommodation"])),fS,sS,cHN),[rawData,fS,sS]);
-  const uniqueApprAll=useMemo(()=>new Set(rawData.filter(r=>isH(r["Requested Accommodation"])&&(r["Approved"]||"").toLowerCase()==="approved").map(r=>r["Student ID"]||r["Name"])).size,[rawData]);
-  const uniqueApprFall=useMemo(()=>new Set(rawData.filter(r=>isH(r["Requested Accommodation"])&&(r["Approved"]||"").toLowerCase()==="approved"&&r["Semester (course)"]===fS).map(r=>r["Student ID"]||r["Name"])).size,[rawData,fS]);
-  const uniqueApprSpring=useMemo(()=>new Set(rawData.filter(r=>isH(r["Requested Accommodation"])&&(r["Approved"]||"").toLowerCase()==="approved"&&r["Semester (course)"]===sS).map(r=>r["Student ID"]||r["Name"])).size,[rawData,sS]);
+  const sid=r=>r["Student ID"]||r["Name"];
+  const housRows=useMemo(()=>rawData.filter(r=>isH(r["Requested Accommodation"])),[rawData]);
+  const apprAll=useMemo(()=>new Set(housRows.filter(r=>(r["Approved"]||"").toLowerCase()==="approved").map(sid)).size,[housRows]);
+  const apprFall=useMemo(()=>new Set(housRows.filter(r=>(r["Approved"]||"").toLowerCase()==="approved"&&r["Semester (course)"]===fS).map(sid)).size,[housRows,fS]);
+  const apprSpring=useMemo(()=>new Set(housRows.filter(r=>(r["Approved"]||"").toLowerCase()==="approved"&&r["Semester (course)"]===sS).map(sid)).size,[housRows,sS]);
+  const intAll=useMemo(()=>new Set(housRows.map(sid)).size,[housRows]);
+  const intFall=useMemo(()=>new Set(housRows.filter(r=>r["Semester (course)"]===fS).map(sid)).size,[housRows,fS]);
+  const intSpring=useMemo(()=>new Set(housRows.filter(r=>r["Semester (course)"]===sS).map(sid)).size,[housRows,sS]);
   if(!rawData.length)return<Empty/>;
   return(<div className="fade-up"><SummaryPanel panel={panel} onClose={()=>setPanel(null)} fS={fS} sS={sS}/>
     <div style={{display:"flex",justifyContent:"space-between",marginBottom:24}}><h2 style={{fontSize:26,fontWeight:800}}>Housing Report</h2><div style={{display:"flex",gap:8}}><button className={`btn ${vm==="semester"?"btn-primary":"btn-outline"}`} onClick={()=>sVM("semester")}>Semester</button><button className={`btn ${vm==="calendar"?"btn-primary":"btn-outline"}`} onClick={()=>sVM("calendar")}>Year</button></div></div>
     <p style={{fontSize:13,color:CO.dim,marginBottom:12}}>Click any row to view a detailed summary ›</p>
     <AT summary={s} vm={vm} onRowClick={row=>setPanel({title:"Housing Accommodation",type:"accommodation",row})}/>
-    <TotalFooter label="Students who received at least one approved housing accommodation" uniqueAll={uniqueApprAll} uniqueFall={uniqueApprFall} uniqueSpring={uniqueApprSpring} color={CO.purple} fS={fS} sS={sS}/>
+    <TotalFooter approvedAll={apprAll} approvedFall={apprFall} approvedSpring={apprSpring} interactAll={intAll} interactFall={intFall} interactSpring={intSpring} color={CO.purple} fS={fS} sS={sS}/>
   </div>);
 }
 
-function TestTab({testRoomData,fS,sS}){
+function TestTab({testRoomData,testAccomData,fS,sS}){
   const[panel,setPanel]=useState(null);
-  if(!testRoomData.length)return<Empty msg="Import test room data."/>;
-  const ft=testRoomData.filter(r=>r["Semester"]===fS).length,st=testRoomData.filter(r=>r["Semester"]===sS).length;
+  const[vm,sVM]=useState("semester");
+  const hasAccom=testAccomData.length>0;
+  const hasBookings=testRoomData.length>0;
+  const sid=r=>r["Student ID"]||r["Name"];
+
+  // Accommodations stats
+  const accomSummary=useMemo(()=>bSum(testAccomData,fS,sS,null),[testAccomData,fS,sS]);
+  const accomApprAll=useMemo(()=>new Set(testAccomData.filter(r=>(r["Approved"]||"").toLowerCase()==="approved").map(sid)).size,[testAccomData]);
+  const accomApprFall=useMemo(()=>new Set(testAccomData.filter(r=>(r["Approved"]||"").toLowerCase()==="approved"&&r["Semester (course)"]===fS).map(sid)).size,[testAccomData,fS]);
+  const accomApprSpring=useMemo(()=>new Set(testAccomData.filter(r=>(r["Approved"]||"").toLowerCase()==="approved"&&r["Semester (course)"]===sS).map(sid)).size,[testAccomData,sS]);
+  const accomIntAll=useMemo(()=>new Set(testAccomData.map(sid)).size,[testAccomData]);
+  const accomIntFall=useMemo(()=>new Set(testAccomData.filter(r=>r["Semester (course)"]===fS).map(sid)).size,[testAccomData,fS]);
+  const accomIntSpring=useMemo(()=>new Set(testAccomData.filter(r=>r["Semester (course)"]===sS).map(sid)).size,[testAccomData,sS]);
+
+  // Bookings stats
+  const ft=testRoomData.filter(r=>r["Semester"]===fS).length;
+  const st=testRoomData.filter(r=>r["Semester"]===sS).length;
   const uniqueAll=new Set(testRoomData.map(r=>r["Student"])).size;
   const uniqueFall=new Set(testRoomData.filter(r=>r["Semester"]===fS).map(r=>r["Student"])).size;
   const uniqueSpring=new Set(testRoomData.filter(r=>r["Semester"]===sS).map(r=>r["Student"])).size;
-  return(<div className="fade-up"><SummaryPanel panel={panel} onClose={()=>setPanel(null)} fS={fS} sS={sS}/>
-    <h2 style={{fontSize:26,fontWeight:800,marginBottom:24}}>Test Room Bookings</h2>
-    <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:14,marginBottom:16}}>
-      <div className="stat-card" style={{background:CO.card,borderRadius:14,border:`1px solid ${CO.border}`,padding:"20px 24px",cursor:"pointer"}} onClick={()=>setPanel({title:"Test Room Summary",type:"testroom",testRoomData})}>
-        <p style={{fontSize:11.5,color:CO.muted,textTransform:"uppercase",letterSpacing:".06em",marginBottom:8,fontWeight:500}}>Total Bookings</p>
-        <p style={{fontSize:30,fontWeight:800,fontFamily:"'JetBrains Mono',monospace",color:CO.yellow,lineHeight:1}}>{testRoomData.length.toLocaleString()}</p>
-        <p style={{fontSize:11,color:CO.dim,marginTop:6}}>Click for details ›</p>
-      </div>
-      <SC label={fS} value={ft} color={CO.orange}/>
-      <SC label={sS} value={st} color={CO.green}/>
-      <SC label="Unique Students" value={uniqueAll}/>
+  const attended=testRoomData.filter(r=>(r["Appointment Cancelled"]||"").toLowerCase()!=="yes");
+  const attendedAll=new Set(attended.map(r=>r["Student"])).size;
+  const attendedFall=new Set(attended.filter(r=>r["Semester"]===fS).map(r=>r["Student"])).size;
+  const attendedSpring=new Set(attended.filter(r=>r["Semester"]===sS).map(r=>r["Student"])).size;
+  const cancelled=testRoomData.filter(r=>(r["Appointment Cancelled"]||"").toLowerCase()==="yes").length;
+
+  if(!hasAccom&&!hasBookings)return<Empty msg="Import testing accommodation and/or bookings data from the Import tab."/>;
+
+  return(<div className="fade-up">
+    <SummaryPanel panel={panel} onClose={()=>setPanel(null)} fS={fS} sS={sS}/>
+    <h2 style={{fontSize:26,fontWeight:800,marginBottom:20}}>Test Room Bookings</h2>
+
+    {/* Section 1: Testing Accommodations */}
+    <div style={{marginBottom:28}}>
+      <p style={{fontSize:12,color:CO.orange,fontWeight:700,textTransform:"uppercase",letterSpacing:".06em",marginBottom:14}}>✎ Testing Accommodations — Approved / Denied</p>
+      {!hasAccom
+        ?<div style={{padding:"18px 20px",borderRadius:12,background:`${CO.orange}0c`,border:`1px dashed ${CO.orange}40`,color:CO.dim,fontSize:13}}>Import the Testing Accommodations file to see this data.</div>
+        :<>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:14}}>
+            <SC label="Unique Students" value={accomIntAll} color={CO.orange}/>
+            <SC label="Approved" value={accomApprAll} color={CO.green}/>
+            <SC label={`${fS} Approved`} value={accomApprFall} color={CO.orange}/>
+            <SC label={`${sS} Approved`} value={accomApprSpring} color={CO.green}/>
+          </div>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+            <p style={{fontSize:13,color:CO.dim}}>Click any row for a detailed summary ›</p>
+            <div style={{display:"flex",gap:8}}><button className={`btn ${vm==="semester"?"btn-primary":"btn-outline"}`} onClick={()=>sVM("semester")} style={{padding:"7px 16px",fontSize:12}}>Semester</button><button className={`btn ${vm==="calendar"?"btn-primary":"btn-outline"}`} onClick={()=>sVM("calendar")} style={{padding:"7px 16px",fontSize:12}}>Year</button></div>
+          </div>
+          <AT summary={accomSummary} vm={vm} onRowClick={row=>setPanel({title:"Testing Accommodation",type:"accommodation",row})}/>
+          <TotalFooter approvedAll={accomApprAll} approvedFall={accomApprFall} approvedSpring={accomApprSpring} interactAll={accomIntAll} interactFall={accomIntFall} interactSpring={accomIntSpring} color={CO.orange} fS={fS} sS={sS}/>
+        </>}
     </div>
-    <TotalFooter label="Unique students who used the testing center" uniqueAll={uniqueAll} uniqueFall={uniqueFall} uniqueSpring={uniqueSpring} color={CO.yellow} fS={fS} sS={sS}/>
+
+    {/* Section 2: Bookings */}
+    <div>
+      <p style={{fontSize:12,color:CO.purple,fontWeight:700,textTransform:"uppercase",letterSpacing:".06em",marginBottom:14}}>📋 Exam Bookings — Delivered / Cancelled</p>
+      {!hasBookings
+        ?<div style={{padding:"18px 20px",borderRadius:12,background:`${CO.purple}0c`,border:`1px dashed ${CO.purple}40`,color:CO.dim,fontSize:13}}>Import the Test Room Bookings file to see this data.</div>
+        :<>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:14}}>
+            <div className="stat-card" style={{background:CO.card,borderRadius:14,border:`1px solid ${CO.border}`,padding:"20px 24px",cursor:"pointer"}} onClick={()=>setPanel({title:"Test Room Summary",type:"testroom",testRoomData})}>
+              <p style={{fontSize:11.5,color:CO.muted,textTransform:"uppercase",letterSpacing:".06em",marginBottom:8,fontWeight:500}}>Total Bookings</p>
+              <p style={{fontSize:30,fontWeight:800,fontFamily:"'JetBrains Mono',monospace",color:CO.purple,lineHeight:1}}>{testRoomData.length.toLocaleString()}</p>
+              <p style={{fontSize:11,color:CO.dim,marginTop:6}}>Click for details ›</p>
+            </div>
+            <SC label="Exams Delivered" value={attended.length} color={CO.green} sub={`${((attended.length/testRoomData.length)*100).toFixed(1)}%`}/>
+            <SC label="Cancelled" value={cancelled} color={CO.red} sub={`${((cancelled/testRoomData.length)*100).toFixed(1)}%`}/>
+            <SC label="Unique Students" value={uniqueAll} color={CO.yellow}/>
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:4}}>
+            <div style={{padding:"14px 18px",borderRadius:12,background:`${CO.orange}0c`,border:`1px solid ${CO.border}`}}><p style={{fontSize:11,color:CO.muted,marginBottom:4}}>{fS}</p><p style={{fontSize:20,fontWeight:800,fontFamily:"'JetBrains Mono',monospace",color:CO.orange}}>{ft.toLocaleString()} <span style={{fontSize:13,color:CO.dim,fontWeight:400}}>bookings</span></p></div>
+            <div style={{padding:"14px 18px",borderRadius:12,background:`${CO.green}0c`,border:`1px solid ${CO.border}`}}><p style={{fontSize:11,color:CO.muted,marginBottom:4}}>{sS}</p><p style={{fontSize:20,fontWeight:800,fontFamily:"'JetBrains Mono',monospace",color:CO.green}}>{st.toLocaleString()} <span style={{fontSize:13,color:CO.dim,fontWeight:400}}>bookings</span></p></div>
+          </div>
+          <TotalFooter approvedAll={attendedAll} approvedFall={attendedFall} approvedSpring={attendedSpring} interactAll={uniqueAll} interactFall={uniqueFall} interactSpring={uniqueSpring} color={CO.purple} fS={fS} sS={sS} approvedLabel="✓ Exams Delivered — Unique Students"/>
+        </>}
+    </div>
   </div>);
 }
-function StudTab({rawData,fS,sS,suS}){const[panel,setPanel]=useState(null);if(!rawData.length)return<Empty/>;const bE=(sf)=>{const c={},s=new Set();(sf?rawData.filter(r=>r["Semester (course)"]===sf):rawData).forEach(r=>{const sid=r["Student ID"]||r["Name"],cl=normCL(r["Class Level"]),k=sf?`${sid}_${cl}`:sid;if(s.has(k))return;s.add(k);c[cl]=(c[cl]||0)+1});return c};const all=bE(null),fe=bE(fS),se=bE(sS),sue=bE(suS);const lvls=[...new Set([...UG,"Graduate","Doctoral","Alumni","Exchange Program","Incominggr",...Object.keys(all)])];const tot=o=>Object.values(o).reduce((a,b)=>a+b,0);
-  return(<div className="fade-up"><SummaryPanel panel={panel} onClose={()=>setPanel(null)} fS={fS} sS={sS}/><h2 style={{fontSize:26,fontWeight:800,marginBottom:24}}>Student Enrollment</h2><div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:14,marginBottom:24}}><div className="stat-card" style={{background:CO.card,borderRadius:14,border:`1px solid ${CO.border}`,padding:"20px 24px",cursor:"pointer"}} onClick={()=>setPanel({title:"Student Enrollment Summary",type:"students",allStudents:{all,fe,se,sue,tot}})}><p style={{fontSize:11.5,color:CO.muted,textTransform:"uppercase",letterSpacing:".06em",marginBottom:8,fontWeight:500}}>Total</p><p style={{fontSize:30,fontWeight:800,fontFamily:"'JetBrains Mono',monospace",color:CO.accent,lineHeight:1}}>{tot(all).toLocaleString()}</p><p style={{fontSize:11,color:CO.dim,marginTop:6}}>Click for details ›</p></div><SC label={fS} value={tot(fe)} color={CO.orange}/><SC label={sS} value={tot(se)} color={CO.green}/><SC label={suS} value={tot(sue)} color={CO.yellow}/></div>
-    <div style={{background:CO.card,borderRadius:14,border:`1px solid ${CO.border}`,overflow:"hidden"}}><div style={{overflow:"auto"}}><table><thead><tr><th>Class Level</th><th style={{textAlign:"right"}}>Fall</th><th style={{textAlign:"right"}}>Spring</th><th style={{textAlign:"right"}}>Summer</th><th style={{textAlign:"right"}}>All</th></tr></thead><tbody>{lvls.filter(cl=>all[cl]).map(cl=><tr key={cl}><td>{cl}</td><td style={{textAlign:"right"}}>{fe[cl]||0}</td><td style={{textAlign:"right"}}>{se[cl]||0}</td><td style={{textAlign:"right"}}>{sue[cl]||0}</td><td style={{textAlign:"right",fontWeight:700}}>{all[cl]||0}</td></tr>)}<tr style={{background:`${CO.accent}0c`}}><td style={{fontWeight:700}}>TOTAL</td><td style={{textAlign:"right",fontWeight:700}}>{tot(fe)}</td><td style={{textAlign:"right",fontWeight:700}}>{tot(se)}</td><td style={{textAlign:"right",fontWeight:700}}>{tot(sue)}</td><td style={{textAlign:"right",fontWeight:700,color:CO.accent}}>{tot(all)}</td></tr></tbody></table></div></div></div>)}
+function StudTab({rawData,testRoomData,testAccomData,apptData,fS,sS,suS}){
+  const[panel,setPanel]=useState(null);
+  if(!rawData.length)return<Empty/>;
+  const sid=r=>r["Student ID"]||r["Name"];
+  const bE=(sf)=>{const c={},s=new Set();(sf?rawData.filter(r=>r["Semester (course)"]===sf):rawData).forEach(r=>{const id=sid(r),cl=normCL(r["Class Level"]),k=sf?`${id}_${cl}`:id;if(s.has(k))return;s.add(k);c[cl]=(c[cl]||0)+1});return c};
+  const all=bE(null),fe=bE(fS),se=bE(sS),sue=bE(suS);
+  const lvls=[...new Set([...UG,"Graduate","Doctoral","Alumni","Exchange Program","Incominggr",...Object.keys(all)])];
+  const tot=o=>Object.values(o).reduce((a,b)=>a+b,0);
+
+  // Academic snapshot
+  const acadRows=useMemo(()=>rawData.filter(r=>isA(r["Requested Accommodation"])),[rawData]);
+  const acadAppr=useMemo(()=>new Set(acadRows.filter(r=>(r["Approved"]||"").toLowerCase()==="approved").map(sid)).size,[acadRows]);
+  const acadInt=useMemo(()=>new Set(acadRows.map(sid)).size,[acadRows]);
+
+  // Housing snapshot
+  const housRows=useMemo(()=>rawData.filter(r=>isH(r["Requested Accommodation"])),[rawData]);
+  const housAppr=useMemo(()=>new Set(housRows.filter(r=>(r["Approved"]||"").toLowerCase()==="approved").map(sid)).size,[housRows]);
+  const housInt=useMemo(()=>new Set(housRows.map(sid)).size,[housRows]);
+
+  // Testing snapshot - use testAccomData for approved/interactions, bookings for delivered
+  const testAccomAppr=testAccomData.length?new Set(testAccomData.filter(r=>(r["Approved"]||"").toLowerCase()==="approved").map(r=>r["Student ID"]||r["Name"])).size:null;
+  const testAccomInt=testAccomData.length?new Set(testAccomData.map(r=>r["Student ID"]||r["Name"])).size:null;
+  const testUnique=testRoomData.length?new Set(testRoomData.map(r=>r["Student"])).size:null;
+  const testAttended=testRoomData.length?new Set(testRoomData.filter(r=>(r["Appointment Cancelled"]||"").toLowerCase()!=="yes").map(r=>r["Student"])).size:null;
+
+  // Direct services snapshot
+  const apptDelivered=apptData.filter(r=>(r["Appointment Cancelled"]||"").toLowerCase()!=="yes");
+  const apptUnique=apptData.length?new Set(apptDelivered.map(r=>r["Symplicity Student ID"]||r["Student ID"]||r["Name"])).size:null;
+  const apptTotal=apptData.length?apptDelivered.length:null;
+  const apptHrs=apptData.length?(apptDelivered.reduce((a,r)=>a+(parseInt(r["Appointment Length"])||0),0)/60).toFixed(1):null;
+  const oarsInt=useMemo(()=>new Set(rawData.map(sid)).size,[rawData]);
+  const oarsAppr=useMemo(()=>new Set(rawData.filter(r=>(r["Approved"]||"").toLowerCase()==="approved").map(sid)).size,[rawData]);
+
+  const SnapCard=({title,color,appr,apprLabel="Approved",interact,interactLabel="Interactions",extra})=>(
+    <div style={{background:CO.card,borderRadius:14,border:`1.5px solid ${color}30`,padding:"18px 20px"}}>
+      <p style={{fontSize:11,color,fontWeight:700,textTransform:"uppercase",letterSpacing:".06em",marginBottom:14}}>{title}</p>
+      <div style={{display:"flex",gap:16,flexWrap:"wrap"}}>
+        <div><p style={{fontSize:10,color:CO.dim,textTransform:"uppercase",letterSpacing:".05em",marginBottom:2}}>{apprLabel}</p><p style={{fontSize:28,fontWeight:800,fontFamily:"'JetBrains Mono',monospace",color:CO.green}}>{appr!=null?appr.toLocaleString():"—"}</p></div>
+        <div><p style={{fontSize:10,color:CO.dim,textTransform:"uppercase",letterSpacing:".05em",marginBottom:2}}>{interactLabel}</p><p style={{fontSize:28,fontWeight:800,fontFamily:"'JetBrains Mono',monospace",color}}>{interact!=null?interact.toLocaleString():"—"}</p></div>
+        {extra&&<div><p style={{fontSize:10,color:CO.dim,textTransform:"uppercase",letterSpacing:".05em",marginBottom:2}}>{extra.label}</p><p style={{fontSize:28,fontWeight:800,fontFamily:"'JetBrains Mono',monospace",color:CO.yellow}}>{extra.val!=null?extra.val.toLocaleString():"—"}</p></div>}
+      </div>
+      <p style={{fontSize:11,color:CO.dim,marginTop:8}}>Unique students</p>
+    </div>
+  );
+
+  return(<div className="fade-up">
+    <SummaryPanel panel={panel} onClose={()=>setPanel(null)} fS={fS} sS={sS}/>
+    <h2 style={{fontSize:26,fontWeight:800,marginBottom:6}}>Student Enrollment</h2>
+    <p style={{fontSize:13,color:CO.muted,marginBottom:20}}>Snapshot of all OARS activity for the selected academic year.</p>
+
+    {/* Enrollment stat cards */}
+    <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:14,marginBottom:24}}>
+      <div className="stat-card" style={{background:CO.card,borderRadius:14,border:`1px solid ${CO.border}`,padding:"20px 24px",cursor:"pointer"}} onClick={()=>setPanel({title:"Student Enrollment Summary",type:"students",allStudents:{all,fe,se,sue,tot}})}>
+        <p style={{fontSize:11.5,color:CO.muted,textTransform:"uppercase",letterSpacing:".06em",marginBottom:8,fontWeight:500}}>Total Enrolled</p>
+        <p style={{fontSize:30,fontWeight:800,fontFamily:"'JetBrains Mono',monospace",color:CO.accent,lineHeight:1}}>{tot(all).toLocaleString()}</p>
+        <p style={{fontSize:11,color:CO.dim,marginTop:6}}>Click for details ›</p>
+      </div>
+      <SC label={fS} value={tot(fe)} color={CO.orange}/>
+      <SC label={sS} value={tot(se)} color={CO.green}/>
+      <SC label={suS} value={tot(sue)} color={CO.yellow}/>
+    </div>
+
+    {/* OARS Activity Snapshot */}
+    <div style={{marginBottom:16}}>
+      <p style={{fontSize:13,color:CO.dim,fontWeight:600,textTransform:"uppercase",letterSpacing:".06em",marginBottom:12}}>OARS Activity Snapshot</p>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:14,marginBottom:14}}>
+        <SnapCard title="◎ Academic Accommodations" color={CO.accent} appr={acadAppr} interact={acadInt}/>
+        <SnapCard title="⌂ Housing Accommodations" color={CO.purple} appr={housAppr} interact={housInt}/>
+        <SnapCard title="✎ Testing Center" color={CO.orange} appr={testAccomAppr} apprLabel="Accom. Approved" interact={testAccomInt} interactLabel="Accom. Interactions" extra={testUnique!=null?{label:"Exams Delivered",val:testAttended}:null}/>
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr",gap:14,marginBottom:14}}>
+        <div style={{background:CO.card,borderRadius:14,border:`1.5px solid #22c5c530`,padding:"18px 20px"}}>
+          <p style={{fontSize:11,color:"#22c5c5",fontWeight:700,textTransform:"uppercase",letterSpacing:".06em",marginBottom:14}}>🤝 Direct Service Appointments</p>
+          <div style={{display:"flex",gap:24,flexWrap:"wrap"}}>
+            <div><p style={{fontSize:10,color:CO.dim,textTransform:"uppercase",letterSpacing:".05em",marginBottom:2}}>Unique Students</p><p style={{fontSize:28,fontWeight:800,fontFamily:"'JetBrains Mono',monospace",color:"#22c5c5"}}>{apptUnique!=null?apptUnique.toLocaleString():"—"}</p></div>
+            <div><p style={{fontSize:10,color:CO.dim,textTransform:"uppercase",letterSpacing:".05em",marginBottom:2}}>Total Appointments</p><p style={{fontSize:28,fontWeight:800,fontFamily:"'JetBrains Mono',monospace",color:CO.accent}}>{apptTotal!=null?apptTotal.toLocaleString():"—"}</p></div>
+            <div><p style={{fontSize:10,color:CO.dim,textTransform:"uppercase",letterSpacing:".05em",marginBottom:2}}>Total Hours</p><p style={{fontSize:28,fontWeight:800,fontFamily:"'JetBrains Mono',monospace",color:CO.green}}>{apptHrs!=null?apptHrs:"—"}</p></div>
+          </div>
+          <p style={{fontSize:11,color:CO.dim,marginTop:8}}>Import Direct Service Appointments file to populate • See Direct Services tab for full breakdown</p>
+        </div>
+      </div>
+      <div style={{padding:"16px 24px",borderRadius:14,background:`${CO.accent}08`,border:`1.5px solid ${CO.accent}20`,display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:16}}>
+        <div>
+          <p style={{fontSize:11,color:CO.muted,textTransform:"uppercase",letterSpacing:".06em",marginBottom:4,fontWeight:600}}>Overall OARS — All Unique Students Served</p>
+          <p style={{fontSize:12,color:CO.dim}}>Across academic &amp; housing accommodations combined</p>
+        </div>
+        <div style={{display:"flex",gap:32}}>
+          <div style={{textAlign:"center"}}><p style={{fontSize:10,color:CO.dim,textTransform:"uppercase",letterSpacing:".06em",marginBottom:2}}>Approved</p><p style={{fontSize:34,fontWeight:800,fontFamily:"'JetBrains Mono',monospace",color:CO.green}}>{oarsAppr.toLocaleString()}</p></div>
+          <div style={{textAlign:"center"}}><p style={{fontSize:10,color:CO.dim,textTransform:"uppercase",letterSpacing:".06em",marginBottom:2}}>All Interactions</p><p style={{fontSize:34,fontWeight:800,fontFamily:"'JetBrains Mono',monospace",color:CO.accent}}>{oarsInt.toLocaleString()}</p></div>
+        </div>
+      </div>
+    </div>
+
+    {/* Enrollment by class level table */}
+    <p style={{fontSize:13,color:CO.dim,fontWeight:600,textTransform:"uppercase",letterSpacing:".06em",marginBottom:12}}>Enrollment by Class Level</p>
+    <div style={{background:CO.card,borderRadius:14,border:`1px solid ${CO.border}`,overflow:"hidden"}}>
+      <div style={{overflow:"auto"}}><table><thead><tr><th>Class Level</th><th style={{textAlign:"right"}}>Fall</th><th style={{textAlign:"right"}}>Spring</th><th style={{textAlign:"right"}}>Summer</th><th style={{textAlign:"right"}}>All</th></tr></thead>
+      <tbody>{lvls.filter(cl=>all[cl]).map(cl=><tr key={cl}><td>{cl}</td><td style={{textAlign:"right"}}>{fe[cl]||0}</td><td style={{textAlign:"right"}}>{se[cl]||0}</td><td style={{textAlign:"right"}}>{sue[cl]||0}</td><td style={{textAlign:"right",fontWeight:700}}>{all[cl]||0}</td></tr>)}
+      <tr style={{background:`${CO.accent}0c`}}><td style={{fontWeight:700}}>TOTAL</td><td style={{textAlign:"right",fontWeight:700}}>{tot(fe)}</td><td style={{textAlign:"right",fontWeight:700}}>{tot(se)}</td><td style={{textAlign:"right",fontWeight:700}}>{tot(sue)}</td><td style={{textAlign:"right",fontWeight:700,color:CO.accent}}>{tot(all)}</td></tr>
+      </tbody></table></div>
+    </div>
+  </div>);
+}
 function ExpTab({rawData,fS,sS}){if(!rawData.length)return<Empty msg="Import data first."/>;
   const eA=()=>dlXLSX(bSum(rawData.filter(r=>isA(r["Requested Accommodation"])),fS,sS,null).map(a=>({Accommodation:a.name,"Fall Approved":a.fallApproved,"Fall Denied":a.fallDenied,"Spring Approved":a.springApproved,"Spring Denied":a.springDenied,"Total Unique":a.totalUnique})),"Academic_Report.xlsx");
   const eH=()=>dlXLSX(bSum(rawData.filter(r=>isH(r["Requested Accommodation"])),fS,sS,cHN).map(a=>({Accommodation:a.name,"Fall Approved":a.fallApproved,"Fall Denied":a.fallDenied,"Spring Approved":a.springApproved,"Spring Denied":a.springDenied,"Total Unique":a.totalUnique})),"Housing_Report.xlsx");
@@ -505,13 +703,340 @@ function GenReportTab({rawData,testRoomData,fS,sS,suS,academicYear}){
   </div>);
 }
 
+/* ═══ DIRECT SERVICES TAB ═══ */
+function DirectServicesTab({apptData,fS,sS,suS}){
+  if(!apptData.length)return<Empty msg="Import the Direct Service Appointments file from the Import tab."/>;
+
+  const teal="#22c5c5";
+  const getSem=r=>{
+    const d=r["AppointmentDate"];
+    if(!d||d==="Invalid Date")return"Unknown";
+    const dt=typeof d==="string"?new Date(d):d;
+    if(isNaN(dt))return"Unknown";
+    const mo=dt.getMonth()+1,yr=dt.getFullYear();
+    // Fall: Aug-Dec, Spring: Jan-May, Summer: Jun-Jul
+    if(mo>=8&&mo<=12)return`Fall ${yr}`;
+    if(mo>=1&&mo<=5)return`Spring ${yr}`;
+    return`Summer ${yr}`;
+  };
+
+  const mins=r=>parseInt(r["Appointment Length"])||0;
+  const sid=r=>r["Symplicity Student ID"]||r["Student ID"]||r["Name"]||"unknown";
+  const isCancelled=r=>(r["Appointment Cancelled"]||"").toLowerCase()==="yes";
+
+  const delivered=useMemo(()=>apptData.filter(r=>!isCancelled(r)),[apptData]);
+  const cancelled=apptData.filter(isCancelled);
+
+  const totalMins=delivered.reduce((a,r)=>a+mins(r),0);
+  const totalHrs=(totalMins/60).toFixed(1);
+  const uniqueStudents=new Set(delivered.map(sid)).size;
+
+  // Semester breakdown
+  const bySem=(sem)=>delivered.filter(r=>getSem(r)===sem);
+  const fallAppts=bySem(fS),springAppts=bySem(sS),summerAppts=bySem(suS);
+  const fallHrs=(fallAppts.reduce((a,r)=>a+mins(r),0)/60).toFixed(1);
+  const springHrs=(springAppts.reduce((a,r)=>a+mins(r),0)/60).toFixed(1);
+
+  // By appointment type
+  const byType=useMemo(()=>{const m={};delivered.forEach(r=>{const t=r["Appointment Type"]||"Unknown";if(!m[t])m[t]={count:0,mins:0,students:new Set()};m[t].count++;m[t].mins+=mins(r);m[t].students.add(sid(r))});return Object.entries(m).map(([name,v])=>({name,count:v.count,hours:(v.mins/60).toFixed(1),uniqueStudents:v.students.size})).sort((a,b)=>b.count-a.count)},[delivered]);
+
+  // Virtual vs In-person
+  const virtual=delivered.filter(r=>(r["Appointment Type"]||"").toLowerCase().includes("virtual"));
+  const inperson=delivered.filter(r=>!(r["Appointment Type"]||"").toLowerCase().includes("virtual"));
+  const virtualHrs=(virtual.reduce((a,r)=>a+mins(r),0)/60).toFixed(1);
+  const inpersonHrs=(inperson.reduce((a,r)=>a+mins(r),0)/60).toFixed(1);
+
+  // By staff
+  const byStaff=useMemo(()=>{const m={};delivered.forEach(r=>{const s=r["Staff"]||"Unknown";if(!m[s])m[s]={count:0,mins:0,students:new Set()};m[s].count++;m[s].mins+=mins(r);m[s].students.add(sid(r))});return Object.entries(m).map(([name,v])=>({name,count:v.count,hours:(v.mins/60).toFixed(1),uniqueStudents:v.students.size})).sort((a,b)=>b.count-a.count)},[delivered]);
+
+  const TypeBadge=({label})=>{const virt=label.toLowerCase().includes("virtual");return<span style={{fontSize:10,padding:"2px 8px",borderRadius:10,background:virt?`${CO.purple}20`:`${teal}20`,color:virt?CO.purple:teal,fontWeight:600}}>{virt?"Virtual":"In-Person"}</span>};
+
+  return(<div className="fade-up">
+    <h2 style={{fontSize:26,fontWeight:800,marginBottom:6}}>Direct Service Appointments</h2>
+    <p style={{fontSize:13,color:CO.muted,marginBottom:24}}>One-on-one appointments delivered by OARS staff — excludes cancelled.</p>
+
+    {/* Top stat cards */}
+    <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:14,marginBottom:24}}>
+      <SC label="Unique Students Served" value={uniqueStudents} color={teal}/>
+      <SC label="Total Appointments" value={delivered.length} color={CO.accent}/>
+      <SC label="Total Hours of Service" value={totalHrs} color={CO.green}/>
+      <SC label="Cancelled" value={cancelled.length} color={CO.red} sub={apptData.length?`${((cancelled.length/apptData.length)*100).toFixed(1)}% of all`:""}/>
+    </div>
+
+    {/* Semester + modality row */}
+    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14,marginBottom:24}}>
+      <div style={{background:CO.card,borderRadius:14,border:`1px solid ${CO.border}`,padding:20}}>
+        <p style={{fontSize:12,color:CO.muted,fontWeight:600,textTransform:"uppercase",letterSpacing:".06em",marginBottom:14}}>By Semester</p>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10}}>
+          {[{label:fS,appts:fallAppts,hrs:fallHrs,col:CO.orange},{label:sS,appts:springAppts,hrs:springHrs,col:CO.green},{label:suS,appts:summerAppts,hrs:(summerAppts.reduce((a,r)=>a+mins(r),0)/60).toFixed(1),col:CO.yellow}].map(s=>(
+            <div key={s.label} style={{textAlign:"center",padding:"12px 8px",borderRadius:10,background:`${s.col}0c`}}>
+              <p style={{fontSize:10,color:CO.dim,textTransform:"uppercase",letterSpacing:".05em",marginBottom:4}}>{s.label}</p>
+              <p style={{fontSize:22,fontWeight:800,fontFamily:"'JetBrains Mono',monospace",color:s.col}}>{s.appts.length}</p>
+              <p style={{fontSize:11,color:CO.muted,marginTop:2}}>{s.hrs} hrs</p>
+              <p style={{fontSize:10,color:CO.dim,marginTop:1}}>{new Set(s.appts.map(sid)).size} students</p>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div style={{background:CO.card,borderRadius:14,border:`1px solid ${CO.border}`,padding:20}}>
+        <p style={{fontSize:12,color:CO.muted,fontWeight:600,textTransform:"uppercase",letterSpacing:".06em",marginBottom:14}}>In-Person vs Virtual</p>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+          {[{label:"In-Person",data:inperson,hrs:inpersonHrs,col:teal},{label:"Virtual",data:virtual,hrs:virtualHrs,col:CO.purple}].map(m=>(
+            <div key={m.label} style={{textAlign:"center",padding:"14px 10px",borderRadius:10,background:`${m.col}0c`,border:`1px solid ${m.col}30`}}>
+              <p style={{fontSize:11,color:m.col,fontWeight:700,marginBottom:6}}>{m.label}</p>
+              <p style={{fontSize:26,fontWeight:800,fontFamily:"'JetBrains Mono',monospace",color:m.col}}>{m.data.length}</p>
+              <p style={{fontSize:12,color:CO.muted,marginTop:2}}>{m.hrs} hrs</p>
+              <p style={{fontSize:11,color:CO.dim,marginTop:1}}>{new Set(m.data.map(sid)).size} unique students</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+
+    {/* By appointment type */}
+    <div style={{marginBottom:24}}>
+      <p style={{fontSize:12,color:CO.muted,fontWeight:600,textTransform:"uppercase",letterSpacing:".06em",marginBottom:12}}>Breakdown by Appointment Type</p>
+      <div style={{background:CO.card,borderRadius:14,border:`1px solid ${CO.border}`,overflow:"hidden"}}>
+        <div style={{overflow:"auto",maxHeight:"35vh"}}>
+          <table><thead><tr><th>Appointment Type</th><th></th><th style={{textAlign:"right"}}>Appointments</th><th style={{textAlign:"right"}}>Hours</th><th style={{textAlign:"right"}}>Unique Students</th><th style={{textAlign:"right"}}>Avg/Student</th></tr></thead>
+          <tbody>{byType.map((row,i)=>(
+            <tr key={i}>
+              <td style={{fontWeight:500,maxWidth:280}}>{row.name}</td>
+              <td><TypeBadge label={row.name}/></td>
+              <td style={{textAlign:"right",fontWeight:700,fontFamily:"'JetBrains Mono',monospace"}}>{row.count}</td>
+              <td style={{textAlign:"right"}}><span className="badge badge-green">{row.hours} hrs</span></td>
+              <td style={{textAlign:"right",fontWeight:700,color:teal}}>{row.uniqueStudents}</td>
+              <td style={{textAlign:"right",color:CO.muted,fontSize:12}}>{(row.count/row.uniqueStudents).toFixed(1)}x</td>
+            </tr>
+          ))}</tbody></table>
+        </div>
+      </div>
+    </div>
+
+    {/* By staff */}
+    <div style={{marginBottom:16}}>
+      <p style={{fontSize:12,color:CO.muted,fontWeight:600,textTransform:"uppercase",letterSpacing:".06em",marginBottom:12}}>Breakdown by Staff Member</p>
+      <div style={{background:CO.card,borderRadius:14,border:`1px solid ${CO.border}`,overflow:"hidden"}}>
+        <table><thead><tr><th>Staff Member</th><th style={{textAlign:"right"}}>Appointments</th><th style={{textAlign:"right"}}>Hours</th><th style={{textAlign:"right"}}>Unique Students</th><th style={{textAlign:"right"}}>Avg Appts/Student</th></tr></thead>
+        <tbody>{byStaff.map((row,i)=>(
+          <tr key={i}>
+            <td style={{fontWeight:600}}>{row.name}</td>
+            <td style={{textAlign:"right",fontWeight:700,fontFamily:"'JetBrains Mono',monospace"}}>{row.count}</td>
+            <td style={{textAlign:"right"}}><span className="badge badge-green">{row.hours} hrs</span></td>
+            <td style={{textAlign:"right",fontWeight:700,color:teal}}>{row.uniqueStudents}</td>
+            <td style={{textAlign:"right",color:CO.muted,fontSize:12}}>{(row.count/row.uniqueStudents).toFixed(1)}x</td>
+          </tr>
+        ))}
+        <tr style={{background:`${teal}0c`}}>
+          <td style={{fontWeight:700}}>TOTAL</td>
+          <td style={{textAlign:"right",fontWeight:700,fontFamily:"'JetBrains Mono',monospace"}}>{delivered.length}</td>
+          <td style={{textAlign:"right",fontWeight:700,color:CO.green}}>{totalHrs} hrs</td>
+          <td style={{textAlign:"right",fontWeight:700,color:teal}}>{uniqueStudents}</td>
+          <td style={{textAlign:"right",color:CO.muted,fontSize:12}}>{uniqueStudents?(delivered.length/uniqueStudents).toFixed(1):0}x avg</td>
+        </tr>
+        </tbody></table>
+      </div>
+    </div>
+
+    {/* Summary footer */}
+    <div style={{padding:"18px 24px",borderRadius:14,background:`${teal}0c`,border:`1.5px solid ${teal}30`,display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:16}}>
+      <div>
+        <p style={{fontSize:11,color:teal,fontWeight:700,textTransform:"uppercase",letterSpacing:".06em",marginBottom:4}}>🤝 Direct Services Summary</p>
+        <p style={{fontSize:12,color:CO.dim}}>OARS staff delivered {totalHrs} hours of direct service to {uniqueStudents} unique students across {delivered.length} appointments.</p>
+      </div>
+      <div style={{display:"flex",gap:28}}>
+        <StatBlock label="Unique Students" val={uniqueStudents} color={teal} size={28}/>
+        <StatBlock label="Total Appointments" val={delivered.length} color={CO.accent} size={28}/>
+        <StatBlock label="Total Hours" val={totalHrs} color={CO.green} size={28}/>
+      </div>
+    </div>
+  </div>);
+}
+
+/* ═══ INDIRECT CONTACTS TAB ═══ */
+function IndirectContactsTab({caseNotesData,studentNotesData,fS,sS,suS}){
+  const pink="#c522a0";const amber="#c57a22";const combined="#7a5cf0";
+  if(!caseNotesData.length&&!studentNotesData.length)return<Empty msg="Import Case Notes and/or Student Notes files from the Import tab."/>;
+
+  const getDur=r=>parseInt(r["Duration (Case)"]||r["Duration (Student)"]||0)||0;
+  const getSid=r=>r["Symplicity Student ID"]||"unknown";
+  const getStaff=r=>r["Name of Specialist"]||r["Created By (Student)"]||"Unknown";
+  const getCat=r=>r["Category (Case)"]||r["Category (Student)"]||"Unknown";
+  const getDate=r=>{
+    const d=r["Created"]||r["Date Created (Student)"]||"";
+    if(!d||d==="Invalid Date")return null;
+    const dt=new Date(d);return isNaN(dt)?null:dt;
+  };
+  const getSem=r=>{
+    const dt=getDate(r);if(!dt)return"Unknown";
+    const mo=dt.getMonth()+1,yr=dt.getFullYear();
+    if(mo>=8&&mo<=12)return`Fall ${yr}`;
+    if(mo>=1&&mo<=5)return`Spring ${yr}`;
+    return`Summer ${yr}`;
+  };
+
+  // Normalize both sources into unified rows
+  const caseRows=useMemo(()=>caseNotesData.map(r=>({...r,_src:"Case Notes",_sid:getSid(r),_staff:getStaff(r),_cat:getCat(r),_dur:getDur(r),_sem:getSem(r)})),[caseNotesData]);
+  const studentRows=useMemo(()=>studentNotesData.map(r=>({...r,_src:"Student Notes",_sid:getSid(r),_staff:getStaff(r),_cat:getCat(r),_dur:getDur(r),_sem:getSem(r)})),[studentNotesData]);
+  const all=useMemo(()=>[...caseRows,...studentRows],[caseRows,studentRows]);
+
+  // Totals
+  const totalRecords=all.length;
+  const totalMins=all.reduce((a,r)=>a+r._dur,0);
+  const totalHrs=(totalMins/60).toFixed(1);
+  const uniqueStudents=new Set(all.map(r=>r._sid)).size;
+
+  // Case notes totals
+  const cnMins=caseRows.reduce((a,r)=>a+r._dur,0);
+  const cnHrs=(cnMins/60).toFixed(1);
+  const cnUnique=new Set(caseRows.map(r=>r._sid)).size;
+
+  // Student notes totals
+  const snMins=studentRows.reduce((a,r)=>a+r._dur,0);
+  const snHrs=(snMins/60).toFixed(1);
+  const snUnique=new Set(studentRows.map(r=>r._sid)).size;
+
+  // By semester
+  const bySemStats=(rows,sem)=>{const s=rows.filter(r=>r._sem===sem);return{count:s.length,hrs:(s.reduce((a,r)=>a+r._dur,0)/60).toFixed(1),unique:new Set(s.map(r=>r._sid)).size}};
+  const fallAll=bySemStats(all,fS),springAll=bySemStats(all,sS),summerAll=bySemStats(all,suS);
+
+  // By category (combined)
+  const byCat=useMemo(()=>{const m={};all.forEach(r=>{const c=r._cat;if(!m[c])m[c]={count:0,mins:0,students:new Set()};m[c].count++;m[c].mins+=r._dur;m[c].students.add(r._sid)});return Object.entries(m).map(([name,v])=>({name,count:v.count,hrs:(v.mins/60).toFixed(1),unique:v.students.size})).sort((a,b)=>b.count-a.count)},[all]);
+
+  // By staff (combined)
+  const byStaff=useMemo(()=>{const m={};all.forEach(r=>{const s=r._staff;if(!m[s])m[s]={count:0,mins:0,students:new Set(),src:new Set()};m[s].count++;m[s].mins+=r._dur;m[s].students.add(r._sid);m[s].src.add(r._src)});return Object.entries(m).map(([name,v])=>({name,count:v.count,hrs:(v.mins/60).toFixed(1),unique:v.students.size})).sort((a,b)=>b.count-a.count)},[all]);
+
+  return(<div className="fade-up">
+    <h2 style={{fontSize:26,fontWeight:800,marginBottom:6}}>Indirect Contacts</h2>
+    <p style={{fontSize:13,color:CO.muted,marginBottom:24}}>Case Notes + Student Notes combined — emails, phone calls, remote contacts, and case work on students' behalf.</p>
+
+    {/* Top stat cards */}
+    <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:14,marginBottom:20}}>
+      <SC label="Unique Students" value={uniqueStudents} color={combined}/>
+      <SC label="Total Contacts" value={totalRecords} color={CO.accent}/>
+      <SC label="Total Hours" value={totalHrs} color={CO.green}/>
+      <SC label="Avg Contacts/Student" value={uniqueStudents?(totalRecords/uniqueStudents).toFixed(1):0} color={CO.yellow}/>
+    </div>
+
+    {/* Source breakdown */}
+    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14,marginBottom:20}}>
+      {[{label:"📝 Case Notes",data:caseRows,hrs:cnHrs,unique:cnUnique,col:amber},{label:"🗒️ Student Notes",data:studentRows,hrs:snHrs,unique:snUnique,col:pink}].map(s=>(
+        <div key={s.label} style={{background:CO.card,borderRadius:14,border:`1.5px solid ${s.col}30`,padding:"18px 20px"}}>
+          <p style={{fontSize:11,color:s.col,fontWeight:700,textTransform:"uppercase",letterSpacing:".06em",marginBottom:14}}>{s.label}</p>
+          {s.data.length===0
+            ?<p style={{fontSize:13,color:CO.dim}}>No data loaded</p>
+            :<div style={{display:"flex",gap:20,flexWrap:"wrap"}}>
+              <div><p style={{fontSize:10,color:CO.dim,textTransform:"uppercase",letterSpacing:".05em",marginBottom:2}}>Records</p><p style={{fontSize:26,fontWeight:800,fontFamily:"'JetBrains Mono',monospace",color:s.col}}>{s.data.length.toLocaleString()}</p></div>
+              <div><p style={{fontSize:10,color:CO.dim,textTransform:"uppercase",letterSpacing:".05em",marginBottom:2}}>Hours</p><p style={{fontSize:26,fontWeight:800,fontFamily:"'JetBrains Mono',monospace",color:CO.green}}>{s.hrs}</p></div>
+              <div><p style={{fontSize:10,color:CO.dim,textTransform:"uppercase",letterSpacing:".05em",marginBottom:2}}>Unique Students</p><p style={{fontSize:26,fontWeight:800,fontFamily:"'JetBrains Mono',monospace",color:combined}}>{s.unique.toLocaleString()}</p></div>
+            </div>}
+        </div>
+      ))}
+    </div>
+
+    {/* Semester breakdown */}
+    <div style={{background:CO.card,borderRadius:14,border:`1px solid ${CO.border}`,padding:20,marginBottom:20}}>
+      <p style={{fontSize:12,color:CO.muted,fontWeight:600,textTransform:"uppercase",letterSpacing:".06em",marginBottom:14}}>By Semester</p>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:12}}>
+        {[{label:fS,s:fallAll,col:CO.orange},{label:sS,s:springAll,col:CO.green},{label:suS,s:summerAll,col:CO.yellow}].map(x=>(
+          <div key={x.label} style={{textAlign:"center",padding:"14px 10px",borderRadius:10,background:`${x.col}0c`}}>
+            <p style={{fontSize:10,color:CO.dim,textTransform:"uppercase",letterSpacing:".05em",marginBottom:4}}>{x.label}</p>
+            <p style={{fontSize:24,fontWeight:800,fontFamily:"'JetBrains Mono',monospace",color:x.col}}>{x.s.count.toLocaleString()}</p>
+            <p style={{fontSize:12,color:CO.muted,marginTop:2}}>{x.s.hrs} hrs</p>
+            <p style={{fontSize:11,color:CO.dim,marginTop:1}}>{x.s.unique.toLocaleString()} students</p>
+          </div>
+        ))}
+      </div>
+    </div>
+
+    {/* By category */}
+    <div style={{marginBottom:20}}>
+      <p style={{fontSize:12,color:CO.muted,fontWeight:600,textTransform:"uppercase",letterSpacing:".06em",marginBottom:12}}>By Contact Category</p>
+      <div style={{background:CO.card,borderRadius:14,border:`1px solid ${CO.border}`,overflow:"hidden"}}>
+        <table><thead><tr><th>Category</th><th style={{textAlign:"right"}}>Contacts</th><th style={{textAlign:"right"}}>Hours</th><th style={{textAlign:"right"}}>Unique Students</th><th style={{textAlign:"right"}}>% of Total</th></tr></thead>
+        <tbody>{byCat.map((row,i)=>(
+          <tr key={i}>
+            <td style={{fontWeight:500}}>{row.name}</td>
+            <td style={{textAlign:"right",fontWeight:700,fontFamily:"'JetBrains Mono',monospace"}}>{row.count.toLocaleString()}</td>
+            <td style={{textAlign:"right"}}><span className="badge badge-green">{row.hrs} hrs</span></td>
+            <td style={{textAlign:"right",color:combined,fontWeight:600}}>{row.unique.toLocaleString()}</td>
+            <td style={{textAlign:"right",color:CO.muted,fontSize:12}}>{((row.count/totalRecords)*100).toFixed(1)}%</td>
+          </tr>
+        ))}
+        <tr style={{background:`${combined}0c`}}>
+          <td style={{fontWeight:700}}>TOTAL</td>
+          <td style={{textAlign:"right",fontWeight:700,fontFamily:"'JetBrains Mono',monospace"}}>{totalRecords.toLocaleString()}</td>
+          <td style={{textAlign:"right",fontWeight:700,color:CO.green}}>{totalHrs} hrs</td>
+          <td style={{textAlign:"right",fontWeight:700,color:combined}}>{uniqueStudents.toLocaleString()}</td>
+          <td style={{textAlign:"right",color:CO.muted,fontSize:12}}>100%</td>
+        </tr>
+        </tbody></table>
+      </div>
+    </div>
+
+    {/* By staff */}
+    <div style={{marginBottom:16}}>
+      <p style={{fontSize:12,color:CO.muted,fontWeight:600,textTransform:"uppercase",letterSpacing:".06em",marginBottom:12}}>By Staff Member</p>
+      <div style={{background:CO.card,borderRadius:14,border:`1px solid ${CO.border}`,overflow:"hidden"}}>
+        <table><thead><tr><th>Staff Member</th><th style={{textAlign:"right"}}>Contacts</th><th style={{textAlign:"right"}}>Hours</th><th style={{textAlign:"right"}}>Unique Students</th><th style={{textAlign:"right"}}>Avg/Student</th></tr></thead>
+        <tbody>{byStaff.map((row,i)=>(
+          <tr key={i}>
+            <td style={{fontWeight:600}}>{row.name}</td>
+            <td style={{textAlign:"right",fontWeight:700,fontFamily:"'JetBrains Mono',monospace"}}>{row.count.toLocaleString()}</td>
+            <td style={{textAlign:"right"}}><span className="badge badge-green">{row.hrs} hrs</span></td>
+            <td style={{textAlign:"right",color:combined,fontWeight:600}}>{row.unique.toLocaleString()}</td>
+            <td style={{textAlign:"right",color:CO.muted,fontSize:12}}>{(row.count/row.unique).toFixed(1)}x</td>
+          </tr>
+        ))}
+        <tr style={{background:`${combined}0c`}}>
+          <td style={{fontWeight:700}}>TOTAL</td>
+          <td style={{textAlign:"right",fontWeight:700,fontFamily:"'JetBrains Mono',monospace"}}>{totalRecords.toLocaleString()}</td>
+          <td style={{textAlign:"right",fontWeight:700,color:CO.green}}>{totalHrs} hrs</td>
+          <td style={{textAlign:"right",fontWeight:700,color:combined}}>{uniqueStudents.toLocaleString()}</td>
+          <td style={{textAlign:"right",color:CO.muted,fontSize:12}}>{uniqueStudents?(totalRecords/uniqueStudents).toFixed(1):0}x avg</td>
+        </tr>
+        </tbody></table>
+      </div>
+    </div>
+
+    {/* Summary footer */}
+    <div style={{padding:"18px 24px",borderRadius:14,background:`${combined}0c`,border:`1.5px solid ${combined}30`,display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:16}}>
+      <div>
+        <p style={{fontSize:11,color:combined,fontWeight:700,textTransform:"uppercase",letterSpacing:".06em",marginBottom:4}}>📬 Indirect Contacts Summary</p>
+        <p style={{fontSize:12,color:CO.dim}}>OARS staff logged {totalHrs} hours across {totalRecords.toLocaleString()} indirect contacts with {uniqueStudents.toLocaleString()} unique students.</p>
+      </div>
+      <div style={{display:"flex",gap:28}}>
+        <StatBlock label="Unique Students" val={uniqueStudents} color={combined} size={28}/>
+        <StatBlock label="Total Contacts" val={totalRecords} color={CO.accent} size={28}/>
+        <StatBlock label="Total Hours" val={totalHrs} color={CO.green} size={28}/>
+      </div>
+    </div>
+  </div>);
+}
+
 /* ═══ MAIN APP ═══ */
 function App(){
-  const[rawData,setRawData]=useState([]);const[testRoomData,setTestRoomData]=useState([]);
+  const[rawData,setRawData]=useState([]);
+  const[testRoomData,setTestRoomData]=useState([]);
+  const[testAccomData,setTestAccomData]=useState([]);
+  const[apptData,setApptData]=useState([]);
+  const[caseNotesData,setCaseNotesData]=useState([]);
+  const[studentNotesData,setStudentNotesData]=useState([]);
   const[ay,setAY]=useState("2024-2025");const[tab,setTab]=useState("import");
-  const[iSt,setISt]=useState({raw:null,test:null});const[ld,setLd]=useState(false);
+  const[iSt,setISt]=useState({raw:null,test:null,testaccom:null,appt:null,casenotes:null,studentnotes:null});const[ld,setLd]=useState(false);
   const ys=parseInt(ay.split("-")[0]),fS=`Fall ${ys}`,sS=`Spring ${ys+1}`,suS=`Summer ${ys+1}`;
-  const tabs=[{id:"import",label:"Import Data",icon:"↑"},{id:"summary",label:"Executive Summary",icon:"◈"},{id:"academic",label:"Academic Accomm.",icon:"◎"},{id:"housing",label:"Housing Report",icon:"⌂"},{id:"testroom",label:"Test Room Bookings",icon:"✎"},{id:"students",label:"Student Enrollment",icon:"⦿"},{id:"export",label:"Export as Excel",icon:"↓"},{id:"generate",label:"Generate Word Report",icon:"📄"}];
+  const tabs=[
+    {id:"import",label:"Import Data",icon:"↑"},
+    {id:"summary",label:"Executive Summary",icon:"◈"},
+    {id:"academic",label:"Academic Accomm.",icon:"◎"},
+    {id:"housing",label:"Housing Report",icon:"⌂"},
+    {id:"testroom",label:"Test Room Bookings",icon:"✎"},
+    {id:"appointments",label:"Direct Services",icon:"🤝"},
+    {id:"indirect",label:"Indirect Contacts",icon:"📬"},
+    {id:"students",label:"Student Enrollment",icon:"⦿"},
+    {id:"export",label:"Export as Excel",icon:"↓"},
+    {id:"generate",label:"Generate Word Report",icon:"📄"},
+  ];
 
   return(<div style={{minHeight:"100vh",background:CO.bg,color:CO.text,fontFamily:"'Outfit',sans-serif"}}>
     <header style={{background:CO.card,borderBottom:`1px solid ${CO.border}`,padding:"14px 32px",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
@@ -526,22 +1051,25 @@ function App(){
       </div></header>
     <div style={{display:"flex",height:"calc(100vh - 71px)"}}>
       <nav style={{width:220,background:CO.card,borderRight:`1px solid ${CO.border}`,padding:"20px 0",flexShrink:0,overflowY:"auto"}}>
-        {tabs.map(t=><button key={t.id} onClick={()=>setTab(t.id)} style={{display:"flex",alignItems:"center",gap:10,width:"100%",padding:"12px 18px",background:tab===t.id?CO.accentSoft:"transparent",border:"none",borderLeft:tab===t.id?`3px solid ${CO.accent}`:"3px solid transparent",color:tab===t.id?CO.accent:CO.muted,cursor:"pointer",fontSize:13.5,fontFamily:"inherit",fontWeight:tab===t.id?700:400,transition:"all .15s"}}><span style={{fontSize:15,width:20,textAlign:"center"}}>{t.icon}</span>{t.label}</button>)}
-        <div style={{margin:"20px 18px",padding:16,background:CO.bg,borderRadius:12,border:`1px solid ${CO.border}`}}>
-          <p style={{fontSize:11,color:CO.dim,fontWeight:500,textTransform:"uppercase",letterSpacing:".06em",marginBottom:8}}>Workflow</p>
-          <p style={{fontSize:12,color:CO.muted,lineHeight:1.6}}>1. Import data<br/>2. Review tabs<br/>3. <strong style={{color:CO.accent}}>Customize charts & generate report</strong></p></div>
+        {tabs.map(t=><button key={t.id} onClick={()=>setTab(t.id)} style={{display:"flex",alignItems:"center",gap:10,width:"100%",padding:"11px 18px",background:tab===t.id?CO.accentSoft:"transparent",border:"none",borderLeft:tab===t.id?`3px solid ${CO.accent}`:"3px solid transparent",color:tab===t.id?CO.accent:CO.muted,cursor:"pointer",fontSize:13,fontFamily:"inherit",fontWeight:tab===t.id?700:400,transition:"all .15s"}}><span style={{fontSize:14,width:20,textAlign:"center"}}>{t.icon}</span>{t.label}</button>)}
+        <div style={{margin:"16px 18px",padding:14,background:CO.bg,borderRadius:12,border:`1px solid ${CO.border}`}}>
+          <p style={{fontSize:11,color:CO.dim,fontWeight:500,textTransform:"uppercase",letterSpacing:".06em",marginBottom:6}}>Workflow</p>
+          <p style={{fontSize:11.5,color:CO.muted,lineHeight:1.6}}>1. Import data<br/>2. Review tabs<br/>3. <strong style={{color:CO.accent}}>Generate report</strong></p></div>
       </nav>
       <main style={{flex:1,padding:28,overflow:"auto"}}>
-        {tab==="import"&&<ImportTab rawData={rawData} setRawData={setRawData} testRoomData={testRoomData} setTestRoomData={setTestRoomData} iSt={iSt} setISt={setISt} ld={ld} setLd={setLd}/>}
+        {tab==="import"&&<ImportTab rawData={rawData} setRawData={setRawData} testRoomData={testRoomData} setTestRoomData={setTestRoomData} testAccomData={testAccomData} setTestAccomData={setTestAccomData} apptData={apptData} setApptData={setApptData} caseNotesData={caseNotesData} setCaseNotesData={setCaseNotesData} studentNotesData={studentNotesData} setStudentNotesData={setStudentNotesData} iSt={iSt} setISt={setISt} ld={ld} setLd={setLd}/>}
         {tab==="summary"&&<ExecTab rawData={rawData} testRoomData={testRoomData} fS={fS} sS={sS} suS={suS}/>}
         {tab==="academic"&&<AcadTab rawData={rawData} fS={fS} sS={sS}/>}
         {tab==="housing"&&<HousingTab rawData={rawData} fS={fS} sS={sS}/>}
-        {tab==="testroom"&&<TestTab testRoomData={testRoomData} fS={fS} sS={sS}/>}
-        {tab==="students"&&<StudTab rawData={rawData} fS={fS} sS={sS} suS={suS}/>}
+        {tab==="testroom"&&<TestTab testRoomData={testRoomData} testAccomData={testAccomData} fS={fS} sS={sS}/>}
+        {tab==="appointments"&&<DirectServicesTab apptData={apptData} fS={fS} sS={sS} suS={suS}/>}
+        {tab==="indirect"&&<IndirectContactsTab caseNotesData={caseNotesData} studentNotesData={studentNotesData} fS={fS} sS={sS} suS={suS}/>}
+        {tab==="students"&&<StudTab rawData={rawData} testRoomData={testRoomData} testAccomData={testAccomData} apptData={apptData} fS={fS} sS={sS} suS={suS}/>}
         {tab==="export"&&<ExpTab rawData={rawData} fS={fS} sS={sS}/>}
         {tab==="generate"&&<GenReportTab rawData={rawData} testRoomData={testRoomData} fS={fS} sS={sS} suS={suS} academicYear={ay}/>}
       </main></div></div>);
 }
+
 ReactDOM.render(<App/>,document.getElementById("root"));
 </script>
 </body>
