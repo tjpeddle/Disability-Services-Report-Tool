@@ -463,7 +463,7 @@ function StudTab({rawData,testRoomData,testAccomData,apptData,incomingData,fS,sS
   const inHkw=["housing","emotional support animal","service animal","accessible transport"];
   const inAcadAppr=incomingData.length?new Set(inWithAccom.filter(r=>(r["_ApprovedStatus"]||"").toLowerCase()==="approved"&&!inHkw.some(k=>(r["Requested Accommodation"]||"").toLowerCase().includes(k))).map(r=>r["Student ID"]||r["Name"])).size:null;
   const inHousAppr=incomingData.length?new Set(inWithAccom.filter(r=>(r["_ApprovedStatus"]||"").toLowerCase()==="approved"&&inHkw.some(k=>(r["Requested Accommodation"]||"").toLowerCase().includes(k))).map(r=>r["Student ID"]||r["Name"])).size:null;
-  const inTotal=incomingData.length?new Set(incomingData.map(r=>r["Student ID"]||r["Name"])).size:null;
+  const inTotal=incomingData.length?new Set(inWithAccom.map(r=>r["Student ID"]||r["Name"])).size:null;
 
   const SnapCard=({title,color,appr,apprLabel="Approved",interact,interactLabel="Interactions",extra})=>(
     <div style={{background:CO.card,borderRadius:14,border:`1.5px solid ${color}30`,padding:"18px 20px"}}>
@@ -522,7 +522,7 @@ function StudTab({rawData,testRoomData,testAccomData,apptData,incomingData,fS,sS
             ?<p style={{fontSize:12,color:CO.dim}}>Import New Student Registrations file to populate • See New Student Reg. tab for full breakdown</p>
             :<div>
               <div style={{display:"flex",gap:28,flexWrap:"wrap",marginBottom:10}}>
-                <div><p style={{fontSize:10,color:CO.dim,textTransform:"uppercase",letterSpacing:".05em",marginBottom:2}}>Total Registered</p><p style={{fontSize:28,fontWeight:800,fontFamily:"'JetBrains Mono',monospace",color:"#e6b94a"}}>{inTotal.toLocaleString()}</p></div>
+                <div><p style={{fontSize:10,color:CO.dim,textTransform:"uppercase",letterSpacing:".05em",marginBottom:2}}>Interacted w/ OARS</p><p style={{fontSize:28,fontWeight:800,fontFamily:"'JetBrains Mono',monospace",color:"#e6b94a"}}>{inTotal.toLocaleString()}</p></div>
                 <div><p style={{fontSize:10,color:CO.dim,textTransform:"uppercase",letterSpacing:".05em",marginBottom:2}}>Approved Students</p><p style={{fontSize:28,fontWeight:800,fontFamily:"'JetBrains Mono',monospace",color:CO.green}}>{inApprSids.size.toLocaleString()}</p></div>
                 <div><p style={{fontSize:10,color:CO.dim,textTransform:"uppercase",letterSpacing:".05em",marginBottom:2}}>Academic Approved</p><p style={{fontSize:28,fontWeight:800,fontFamily:"'JetBrains Mono',monospace",color:CO.accent}}>{inAcadAppr}</p></div>
                 {inHousAppr>0&&<div><p style={{fontSize:10,color:CO.dim,textTransform:"uppercase",letterSpacing:".05em",marginBottom:2}}>Housing Approved</p><p style={{fontSize:28,fontWeight:800,fontFamily:"'JetBrains Mono',monospace",color:CO.purple}}>{inHousAppr}</p></div>}
@@ -1136,7 +1136,7 @@ function IncomingTab({incomingData,fS,sS}){
   const sumCol=(arr,col)=>arr.reduce((a,r)=>a+r[col],0);
   const uniqueApprTotal=approvedSids.size;
   const uniqueTotal=new Set(withAccom.map(sid)).size;
-  const totalRegistered=new Set(incomingData.map(sid)).size;
+  const deniedOnlySids=new Set([...new Set(withAccom.map(sid))].filter(s=>!approvedSids.has(s)));
 
   // By class type
   const byClass=useMemo(()=>{
@@ -1201,11 +1201,10 @@ function IncomingTab({incomingData,fS,sS}){
     <p style={{fontSize:13,color:CO.muted,marginBottom:24}}>Incoming Freshman, Graduate, and Doctoral students — only those with at least one approved accommodation shown in detail.</p>
 
     {/* Top stat cards */}
-    <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:14,marginBottom:24}}>
-      <SC label="Total Registered" value={totalRegistered} color={gold}/>
-      <SC label="Requested Accommodations" value={uniqueTotal} color={CO.accent} sub={`of ${totalRegistered} registered`}/>
-      <SC label="At Least One Approved" value={uniqueApprTotal} color={CO.green} sub={`of ${uniqueTotal} who requested`}/>
-      <SC label="Accommodation Requests" value={withAccom.length} color={CO.purple}/>
+    <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:14,marginBottom:24}}>
+      <SC label="Interacted with OARS" value={uniqueTotal} color={gold}/>
+      <SC label="At Least One Approved" value={uniqueApprTotal} color={CO.green} sub={`of ${uniqueTotal} who interacted`}/>
+      <SC label="Denied All / No Approval" value={deniedOnlySids.size} color={CO.red} sub={`of ${uniqueTotal} who interacted`}/>
     </div>
 
     {/* Semester snapshot */}
@@ -1262,12 +1261,12 @@ function IncomingTab({incomingData,fS,sS}){
       <div style={{padding:"16px 24px",borderRadius:14,background:`${gold}0c`,border:`1.5px solid ${gold}30`,display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:16}}>
         <div>
           <p style={{fontSize:11,color:gold,fontWeight:700,textTransform:"uppercase",letterSpacing:".06em",marginBottom:4}}>🎓 Incoming Grand Total</p>
-          <p style={{fontSize:12,color:CO.dim}}>{uniqueApprTotal} incoming students approved for accommodations out of {uniqueTotal} who requested — {totalRegistered} total registered with OARS.</p>
+          <p style={{fontSize:12,color:CO.dim}}>{uniqueApprTotal} incoming students approved out of {uniqueTotal} who interacted with OARS — {deniedOnlySids.size} had no approvals.</p>
         </div>
         <div style={{display:"flex",gap:28}}>
-          <StatBlock label="Registered" val={totalRegistered} color={gold} size={28}/>
-          <StatBlock label="Requested" val={uniqueTotal} color={CO.accent} size={28}/>
+          <StatBlock label="Interacted" val={uniqueTotal} color={gold} size={28}/>
           <StatBlock label="Approved" val={uniqueApprTotal} color={CO.green} size={28}/>
+          <StatBlock label="Denied All" val={deniedOnlySids.size} color={CO.red} size={28}/>
         </div>
       </div>
     </div>
