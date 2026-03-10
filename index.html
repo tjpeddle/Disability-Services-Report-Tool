@@ -668,7 +668,7 @@ function ChartEditor({cfg,onChange}){
 }
 
 /* ═══ GENERATE REPORT TAB ═══ */
-function GenReportTab({rawData,testRoomData,fS,sS,suS,academicYear}){
+function GenReportTab({rawData,testRoomData,testAccomData,apptData,caseNotesData,studentNotesData,incomingData,fS,sS,suS,academicYear}){
   const[prepFor,setPF]=useState("Andy Bills, Senior Vice President for Career and Professional Development, Student Success and Executive Education");
   const[prepBy,setPB]=useState("Joel Peddle, Assistant Director of Assistive Technology & OARS Testing Center");
   const[finalBy,setFB]=useState("Anna Ward, Senior Director of OARS");
@@ -1566,7 +1566,7 @@ function App(){
         {tab==="incoming"&&<IncomingTab incomingData={incomingData} fS={fS} sS={sS}/>}
         {tab==="students"&&<StudTab rawData={rawData} testRoomData={testRoomData} testAccomData={testAccomData} apptData={apptData} incomingData={incomingData} fS={fS} sS={sS} suS={suS}/>}
         {tab==="export"&&<ExpTab rawData={rawData} fS={fS} sS={sS}/>}
-        {tab==="generate"&&<GenReportTab rawData={rawData} testRoomData={testRoomData} fS={fS} sS={sS} suS={suS} academicYear={ay}/>}
+        {tab==="generate"&&<GenReportTab rawData={rawData} testRoomData={testRoomData} testAccomData={testAccomData} apptData={apptData} caseNotesData={caseNotesData} studentNotesData={studentNotesData} incomingData={incomingData} fS={fS} sS={sS} suS={suS} academicYear={ay}/>}
       </main></div></div>);
 }
 
