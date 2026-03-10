@@ -272,13 +272,201 @@ function ImportTab({rawData,setRawData,testRoomData,setTestRoomData,testAccomDat
   </div>);
 }
 
-function ExecTab({rawData,testRoomData,fS,sS,suS}){
-  if(!rawData.length)return<Empty/>;
-  const us=new Set(rawData.map(r=>r["Student ID"]||r["Name"])).size;const ap=rawData.filter(r=>(r["Approved"]||"").toLowerCase()==="approved").length;const dn=rawData.filter(r=>(r["Approved"]||"").toLowerCase()==="denied").length;
-  return(<div className="fade-up"><h2 style={{fontSize:26,fontWeight:800,marginBottom:24}}>Executive Summary</h2>
-    <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:14,marginBottom:28}}>
-      <SC label="Unique Students" value={us}/><SC label="Total Records" value={rawData.length} color={CO.purple}/><SC label="Approved" value={ap} color={CO.green} sub={`${(ap/(ap+dn)*100).toFixed(1)}%`}/><SC label="Denied" value={dn} color={CO.red}/>
-    </div><p style={{color:CO.muted}}>Use <strong style={{color:CO.accent}}>Generate Word Report</strong> tab to customize charts and export.</p></div>);
+function ExecTab({rawData,testRoomData,testAccomData,apptData,caseNotesData,studentNotesData,incomingData,fS,sS,suS}){
+  if(!rawData.length)return<Empty msg="Import the Academic & Housing Accommodations file to view the Executive Summary."/>;
+
+  const sid=r=>r["Student ID"]||r["Name"]||"unknown";
+  const isApproved=r=>(r["Approved"]||"").toLowerCase()==="approved";
+  const isDenied=r=>(r["Approved"]||"").toLowerCase()==="denied";
+
+  // Core student counts
+  const uniqueStudents=useMemo(()=>new Set(rawData.map(sid)).size,[rawData]);
+  const approvedStudents=useMemo(()=>new Set(rawData.filter(isApproved).map(sid)).size,[rawData]);
+  const deniedStudents=useMemo(()=>new Set(rawData.filter(r=>isDenied(r)&&!rawData.filter(isApproved).find(a=>sid(a)===sid(r))).map(sid)).size,[rawData]);
+  const approvalRate=uniqueStudents?((approvedStudents/uniqueStudents)*100).toFixed(1):0;
+
+  // Academic top/least
+  const acadRows=useMemo(()=>rawData.filter(r=>isA(r["Requested Accommodation"])),[rawData]);
+  const acadSummary=useMemo(()=>{
+    const m={};acadRows.forEach(r=>{const a=r["Requested Accommodation"];if(!a)return;if(!m[a])m[a]={appr:new Set(),den:new Set()};if(isApproved(r))m[a].appr.add(sid(r));else if(isDenied(r))m[a].den.add(sid(r))});
+    return Object.entries(m).map(([name,v])=>({name,approved:v.appr.size,denied:v.den.size,total:v.appr.size+v.den.size})).sort((a,b)=>b.total-a.total);
+  },[acadRows]);
+  const top5Acad=acadSummary.slice(0,5);
+  const leastAcad=acadSummary.length?acadSummary[acadSummary.length-1]:null;
+
+  // Housing top/least
+  const housRows=useMemo(()=>rawData.filter(r=>isH(r["Requested Accommodation"])),[rawData]);
+  const housSummary=useMemo(()=>{
+    const m={};housRows.forEach(r=>{const a=cHN(r["Requested Accommodation"]);if(!a)return;if(!m[a])m[a]={appr:new Set(),den:new Set()};if(isApproved(r))m[a].appr.add(sid(r));else if(isDenied(r))m[a].den.add(sid(r))});
+    return Object.entries(m).map(([name,v])=>({name,approved:v.appr.size,denied:v.den.size,total:v.appr.size+v.den.size})).sort((a,b)=>b.total-a.total);
+  },[housRows]);
+  const top3Hous=housSummary.slice(0,3);
+  const leastHous=housSummary.length?housSummary[housSummary.length-1]:null;
+
+  // Testing center
+  const testBooked=testRoomData.length;
+  const testDelivered=testRoomData.filter(r=>(r["Appointment Cancelled"]||"").toLowerCase()!=="yes").length;
+  const testCancelled=testRoomData.filter(r=>(r["Appointment Cancelled"]||"").toLowerCase()==="yes").length;
+  const testCancelRate=testBooked?((testCancelled/testBooked)*100).toFixed(1):0;
+  const fallTests=testRoomData.filter(r=>(r["Semester"]||"").includes(fS.split(" ")[1]||"")&&(r["Semester"]||"").toLowerCase().includes("fall")).length;
+  const springTests=testRoomData.filter(r=>(r["Semester"]||"").toLowerCase().includes("spring")).length;
+  const testAccomApproved=testAccomData.length?new Set(testAccomData.filter(r=>(r["Approved"]||"").toLowerCase()==="approved").map(r=>r["Student ID"]||r["Name"])).size:null;
+
+  // Direct services
+  const apptDelivered=apptData.filter(r=>(r["Appointment Cancelled"]||"").toLowerCase()!=="yes");
+  const apptHrs=apptData.length?(apptDelivered.reduce((a,r)=>a+(parseInt(r["Appointment Length"])||0),0)/60).toFixed(1):null;
+  const apptUnique=apptData.length?new Set(apptDelivered.map(r=>r["Symplicity Student ID"]||r["Student ID"]||r["Name"])).size:null;
+
+  // Indirect contacts
+  const allNotes=[...caseNotesData,...studentNotesData];
+  const notesHrs=allNotes.length?(allNotes.reduce((a,r)=>a+(parseInt(r["Duration (Case)"]||r["Duration (Student)"])||0),0)/60).toFixed(1):null;
+  const notesUnique=allNotes.length?new Set(allNotes.map(r=>r["Symplicity Student ID"]||"unknown")).size:null;
+
+  // Combined service hours
+  const combinedHrs=(apptHrs&&notesHrs)?(parseFloat(apptHrs)+parseFloat(notesHrs)).toFixed(1):null;
+
+  // Incoming snapshot
+  const inWithAccom=incomingData.filter(r=>(r["Requested Accommodation"]||"").trim());
+  const inApproved=incomingData.length?new Set(inWithAccom.filter(r=>(r["_ApprovedStatus"]||"").toLowerCase()==="approved").map(r=>r["Student ID"]||r["Name"])).size:null;
+  const inTotal=incomingData.length?new Set(inWithAccom.map(r=>r["Student ID"]||r["Name"])).size:null;
+
+  // Chart data — top 5 academic
+  const acadChartData={
+    labels:top5Acad.map(r=>r.name.length>30?r.name.slice(0,28)+"…":r.name),
+    datasets:[
+      {label:"Approved",data:top5Acad.map(r=>r.approved),backgroundColor:`${CO.green}cc`,borderRadius:4},
+      {label:"Denied",data:top5Acad.map(r=>r.denied),backgroundColor:`${CO.red}99`,borderRadius:4},
+    ]
+  };
+  const acadChartOptions={indexAxis:"y",responsive:true,maintainAspectRatio:false,plugins:{legend:{position:"bottom",labels:{color:CO.muted,font:{size:11}}},tooltip:{callbacks:{label:ctx=>`${ctx.dataset.label}: ${ctx.parsed.x.toLocaleString()}`}}},scales:{x:{stacked:false,grid:{color:CO.border},ticks:{color:CO.muted,font:{size:11}}},y:{grid:{display:false},ticks:{color:CO.text,font:{size:11}}}}};
+
+  // Chart data — testing bar
+  const testChartData={
+    labels:[fS,sS,"Grand Total"],
+    datasets:[{label:"Exams",data:[fallTests,springTests,testDelivered],backgroundColor:[`${CO.orange}cc`,`${CO.green}cc`,`${CO.purple}cc`],borderRadius:6}]
+  };
+  const testChartOptions={responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>`${ctx.parsed.y.toLocaleString()} exams`}}},scales:{x:{grid:{display:false},ticks:{color:CO.muted}},y:{grid:{color:CO.border},ticks:{color:CO.muted}}}};
+
+  const Divider=({label})=>(
+    <div style={{display:"flex",alignItems:"center",gap:12,margin:"24px 0 16px"}}>
+      <div style={{height:1,flex:1,background:CO.border}}/>
+      <span style={{fontSize:11,color:CO.dim,fontWeight:600,textTransform:"uppercase",letterSpacing:".08em",whiteSpace:"nowrap"}}>{label}</span>
+      <div style={{height:1,flex:1,background:CO.border}}/>
+    </div>
+  );
+
+  return(<div className="fade-up" style={{maxHeight:"calc(100vh - 120px)",overflowY:"auto",paddingRight:4}}>
+    <div style={{display:"flex",alignItems:"baseline",justifyContent:"space-between",marginBottom:6}}>
+      <h2 style={{fontSize:26,fontWeight:800}}>Executive Summary</h2>
+      <span style={{fontSize:12,color:CO.dim,fontFamily:"'JetBrains Mono',monospace"}}>{fS} — {sS}</span>
+    </div>
+    <p style={{fontSize:13,color:CO.muted,marginBottom:20}}>Live dashboard — updates automatically when new data files are imported.</p>
+
+    {/* Row 1 — Core students */}
+    <Divider label="Student Population"/>
+    <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:14,marginBottom:8}}>
+      <SC label="Total Unique Students" value={uniqueStudents} color={CO.accent}/>
+      <SC label="At Least One Approved" value={approvedStudents} color={CO.green} sub={`${approvalRate}% approval rate`}/>
+      <SC label="Denied All" value={deniedStudents} color={CO.red}/>
+      <SC label="Total Accommodation Records" value={rawData.length} color={CO.purple}/>
+    </div>
+
+    {/* Row 2 — Testing center */}
+    {testRoomData.length>0&&<>
+      <Divider label="Testing Center"/>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:14,marginBottom:16}}>
+        <SC label="Total Booked" value={testBooked} color={CO.accent}/>
+        <SC label="Delivered" value={testDelivered} color={CO.green}/>
+        <SC label="Cancelled" value={testCancelled} color={CO.red} sub={`${testCancelRate}% rate`}/>
+        <SC label={`${fS} Exams`} value={fallTests} color={CO.orange}/>
+        <SC label={`${sS} Exams`} value={springTests} color={CO.yellow}/>
+      </div>
+      {testAccomApproved!=null&&<div style={{padding:"12px 18px",borderRadius:10,background:`${CO.orange}0c`,border:`1px solid ${CO.orange}20`,marginBottom:8,fontSize:13,color:CO.muted}}>
+        ✎ <strong style={{color:CO.orange}}>{testAccomApproved.toLocaleString()}</strong> unique students approved for testing accommodations
+      </div>}
+    </>}
+
+    {/* Row 3 — Service hours */}
+    {(apptData.length>0||allNotes.length>0)&&<>
+      <Divider label="Direct & Indirect Service"/>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:14,marginBottom:8}}>
+        <SC label="Direct Appt. Delivered" value={apptData.length?apptDelivered.length:"—"} color={"#22c5c5"}/>
+        <SC label="Direct Service Hours" value={apptHrs||"—"} color={CO.green}/>
+        <SC label="Indirect Contacts" value={allNotes.length?allNotes.length:"—"} color={"#c57a22"}/>
+        <SC label="Indirect Contact Hours" value={notesHrs||"—"} color={"#c522a0"}/>
+      </div>
+      {combinedHrs&&<div style={{padding:"12px 18px",borderRadius:10,background:`${CO.green}0c`,border:`1px solid ${CO.green}20`,marginBottom:8,fontSize:13,color:CO.muted}}>
+        🕐 <strong style={{color:CO.green}}>{combinedHrs}</strong> combined service hours delivered across direct appointments and indirect contacts
+      </div>}
+    </>}
+
+    {/* Row 4 — Incoming */}
+    {incomingData.length>0&&<>
+      <Divider label="Incoming New Students (Separate Population)"/>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:14,marginBottom:8}}>
+        <SC label="Interacted with OARS" value={inTotal||0} color={"#e6b94a"}/>
+        <SC label="At Least One Approved" value={inApproved||0} color={CO.green}/>
+        <SC label="Denied All" value={inTotal&&inApproved?inTotal-inApproved:0} color={CO.red}/>
+      </div>
+      <div style={{padding:"10px 18px",borderRadius:10,background:"#e6b94a0c",border:"1px solid #e6b94a20",marginBottom:8,fontSize:12,color:CO.dim}}>
+        🎓 Incoming students are tracked separately and not included in the main student population counts above.
+      </div>
+    </>}
+
+    {/* Row 5 — Charts */}
+    <Divider label="Accommodation Highlights"/>
+    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:20,marginBottom:20}}>
+
+      {/* Top 5 Academic chart */}
+      <div style={{background:CO.card,borderRadius:14,border:`1px solid ${CO.border}`,padding:20}}>
+        <p style={{fontSize:12,fontWeight:700,color:CO.accent,textTransform:"uppercase",letterSpacing:".06em",marginBottom:14}}>◎ Top 5 Academic Accommodations</p>
+        <div style={{height:220}}><PChart type="bar" data={acadChartData} options={acadChartOptions} height={220}/></div>
+      </div>
+
+      {/* Testing center chart */}
+      <div style={{background:CO.card,borderRadius:14,border:`1px solid ${CO.border}`,padding:20}}>
+        <p style={{fontSize:12,fontWeight:700,color:CO.orange,textTransform:"uppercase",letterSpacing:".06em",marginBottom:14}}>✎ Testing Center — Exams by Semester</p>
+        {testRoomData.length>0
+          ?<div style={{height:220}}><PChart type="bar" data={testChartData} options={testChartOptions} height={220}/></div>
+          :<div style={{height:220,display:"flex",alignItems:"center",justifyContent:"center",color:CO.dim,fontSize:13}}>Import Test Room Bookings file to view chart</div>}
+      </div>
+    </div>
+
+    {/* Row 6 — Top/Least callout cards */}
+    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:20,marginBottom:20}}>
+
+      {/* Top housing */}
+      <div style={{background:CO.card,borderRadius:14,border:`1px solid ${CO.border}`,padding:20}}>
+        <p style={{fontSize:12,fontWeight:700,color:CO.purple,textTransform:"uppercase",letterSpacing:".06em",marginBottom:14}}>⌂ Top 3 Housing Accommodations</p>
+        {top3Hous.map((h,i)=>(
+          <div key={i} style={{display:"flex",alignItems:"center",gap:12,marginBottom:10,padding:"10px 14px",borderRadius:10,background:`${CO.purple}08`}}>
+            <span style={{fontSize:18,fontWeight:800,color:CO.purple,fontFamily:"'JetBrains Mono',monospace",minWidth:24}}>#{i+1}</span>
+            <div style={{flex:1}}>
+              <p style={{fontSize:13,fontWeight:600}}>{h.name}</p>
+              <p style={{fontSize:11,color:CO.muted}}>{h.approved} approved · {h.denied} denied · {h.total} total</p>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Least requested */}
+      <div style={{background:CO.card,borderRadius:14,border:`1px solid ${CO.border}`,padding:20}}>
+        <p style={{fontSize:12,fontWeight:700,color:CO.dim,textTransform:"uppercase",letterSpacing:".06em",marginBottom:14}}>Least Requested Accommodations</p>
+        {leastAcad&&<div style={{marginBottom:12,padding:"12px 16px",borderRadius:10,background:`${CO.accent}08`}}>
+          <p style={{fontSize:11,color:CO.accent,fontWeight:600,textTransform:"uppercase",letterSpacing:".05em",marginBottom:4}}>◎ Academic</p>
+          <p style={{fontSize:14,fontWeight:700}}>{leastAcad.name}</p>
+          <p style={{fontSize:12,color:CO.muted}}>{leastAcad.total} total request{leastAcad.total!==1?"s":""} · {leastAcad.approved} approved</p>
+        </div>}
+        {leastHous&&<div style={{padding:"12px 16px",borderRadius:10,background:`${CO.purple}08`}}>
+          <p style={{fontSize:11,color:CO.purple,fontWeight:600,textTransform:"uppercase",letterSpacing:".05em",marginBottom:4}}>⌂ Housing</p>
+          <p style={{fontSize:14,fontWeight:700}}>{leastHous.name}</p>
+          <p style={{fontSize:12,color:CO.muted}}>{leastHous.total} total request{leastHous.total!==1?"s":""} · {leastHous.approved} approved</p>
+        </div>}
+      </div>
+    </div>
+
+    <p style={{fontSize:11,color:CO.dim,textAlign:"center",paddingBottom:16}}>For full accommodation tables, charts, and Word report export — use the tabs on the left.</p>
+  </div>);
 }
 
 function AT({summary,vm,onRowClick}){return(<div style={{background:CO.card,borderRadius:14,border:`1px solid ${CO.border}`,overflow:"hidden"}}><div style={{overflow:"auto",maxHeight:"65vh"}}><table><thead><tr><th style={{minWidth:300}}>Accommodation</th>{vm==="semester"?<><th style={{textAlign:"right"}}>Fall Appr</th><th style={{textAlign:"right"}}>Fall Den</th><th style={{textAlign:"right"}}>Spr Appr</th><th style={{textAlign:"right"}}>Spr Den</th></>:<><th style={{textAlign:"right"}}>Approved</th><th style={{textAlign:"right"}}>Denied</th></>}<th style={{textAlign:"right"}}>Total Unique</th><th style={{width:60}}></th></tr></thead><tbody>{summary.map((row,i)=>(<tr key={i} className="row-clickable" onClick={()=>onRowClick&&onRowClick(row)}><td style={{fontWeight:500}}>{row.name}</td>{vm==="semester"?<><td style={{textAlign:"right"}}><span className="badge badge-green">{row.fallApproved}</span></td><td style={{textAlign:"right"}}><span className="badge badge-red">{row.fallDenied}</span></td><td style={{textAlign:"right"}}><span className="badge badge-green">{row.springApproved}</span></td><td style={{textAlign:"right"}}><span className="badge badge-red">{row.springDenied}</span></td></>:<><td style={{textAlign:"right"}}><span className="badge badge-green">{row.calApproved}</span></td><td style={{textAlign:"right"}}><span className="badge badge-red">{row.calDenied}</span></td></>}<td style={{textAlign:"right",fontWeight:700,fontFamily:"'JetBrains Mono',monospace"}}>{row.totalUnique}</td><td style={{textAlign:"center",color:CO.dim,fontSize:16}}>›</td></tr>))}</tbody></table></div></div>)}
@@ -1340,7 +1528,7 @@ function App(){
       </nav>
       <main style={{flex:1,padding:28,overflow:"auto"}}>
         {tab==="import"&&<ImportTab rawData={rawData} setRawData={setRawData} testRoomData={testRoomData} setTestRoomData={setTestRoomData} testAccomData={testAccomData} setTestAccomData={setTestAccomData} apptData={apptData} setApptData={setApptData} caseNotesData={caseNotesData} setCaseNotesData={setCaseNotesData} studentNotesData={studentNotesData} setStudentNotesData={setStudentNotesData} incomingData={incomingData} setIncomingData={setIncomingData} iSt={iSt} setISt={setISt} ld={ld} setLd={setLd}/>}
-        {tab==="summary"&&<ExecTab rawData={rawData} testRoomData={testRoomData} fS={fS} sS={sS} suS={suS}/>}
+        {tab==="summary"&&<ExecTab rawData={rawData} testRoomData={testRoomData} testAccomData={testAccomData} apptData={apptData} caseNotesData={caseNotesData} studentNotesData={studentNotesData} incomingData={incomingData} fS={fS} sS={sS} suS={suS}/>}
         {tab==="academic"&&<AcadTab rawData={rawData} fS={fS} sS={sS}/>}
         {tab==="housing"&&<HousingTab rawData={rawData} fS={fS} sS={sS}/>}
         {tab==="testroom"&&<TestTab testRoomData={testRoomData} testAccomData={testAccomData} fS={fS} sS={sS}/>}
