@@ -458,6 +458,12 @@ function TestTab({testRoomData,testAccomData,fS,sS}){
   const attendedFall=new Set(attended.filter(r=>r["Semester"]===fS).map(r=>r["Student"])).size;
   const attendedSpring=new Set(attended.filter(r=>r["Semester"]===sS).map(r=>r["Student"])).size;
   const cancelled=testRoomData.filter(r=>(r["Appointment Cancelled"]||"").toLowerCase()==="yes").length;
+  const deliveredFall=attended.filter(r=>r["Semester"]===fS).length;
+  const deliveredSpring=attended.filter(r=>r["Semester"]===sS).length;
+  const cancelledFall=testRoomData.filter(r=>r["Semester"]===fS&&(r["Appointment Cancelled"]||"").toLowerCase()==="yes").length;
+  const cancelledSpring=testRoomData.filter(r=>r["Semester"]===sS&&(r["Appointment Cancelled"]||"").toLowerCase()==="yes").length;
+  const cancelRateFall=ft?((cancelledFall/ft)*100).toFixed(1):"0.0";
+  const cancelRateSpring=st?((cancelledSpring/st)*100).toFixed(1):"0.0";
 
   if(!hasAccom&&!hasBookings)return<Empty msg="Import testing accommodation and/or bookings data from the Import tab."/>;
 
@@ -503,8 +509,22 @@ function TestTab({testRoomData,testAccomData,fS,sS}){
             <SC label="Unique Students" value={uniqueAll} color={CO.yellow}/>
           </div>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:4}}>
-            <div style={{padding:"14px 18px",borderRadius:12,background:`${CO.orange}0c`,border:`1px solid ${CO.border}`}}><p style={{fontSize:11,color:CO.muted,marginBottom:4}}>{fS}</p><p style={{fontSize:20,fontWeight:800,fontFamily:"'JetBrains Mono',monospace",color:CO.orange}}>{ft.toLocaleString()} <span style={{fontSize:13,color:CO.dim,fontWeight:400}}>bookings</span></p></div>
-            <div style={{padding:"14px 18px",borderRadius:12,background:`${CO.green}0c`,border:`1px solid ${CO.border}`}}><p style={{fontSize:11,color:CO.muted,marginBottom:4}}>{sS}</p><p style={{fontSize:20,fontWeight:800,fontFamily:"'JetBrains Mono',monospace",color:CO.green}}>{st.toLocaleString()} <span style={{fontSize:13,color:CO.dim,fontWeight:400}}>bookings</span></p></div>
+            <div style={{padding:"16px 18px",borderRadius:12,background:`${CO.orange}0c`,border:`1px solid ${CO.border}`}}>
+              <p style={{fontSize:11,color:CO.orange,fontWeight:700,textTransform:"uppercase",letterSpacing:".06em",marginBottom:10}}>{fS}</p>
+              <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8}}>
+                <div><p style={{fontSize:10,color:CO.muted,marginBottom:3}}>Total Bookings</p><p style={{fontSize:22,fontWeight:800,fontFamily:"'JetBrains Mono',monospace",color:CO.orange}}>{ft.toLocaleString()}</p></div>
+                <div><p style={{fontSize:10,color:CO.muted,marginBottom:3}}>Delivered</p><p style={{fontSize:22,fontWeight:800,fontFamily:"'JetBrains Mono',monospace",color:CO.green}}>{deliveredFall.toLocaleString()}</p><p style={{fontSize:10,color:CO.dim}}>{ft?((deliveredFall/ft)*100).toFixed(1):0}% of bookings</p></div>
+                <div><p style={{fontSize:10,color:CO.muted,marginBottom:3}}>Cancelled</p><p style={{fontSize:22,fontWeight:800,fontFamily:"'JetBrains Mono',monospace",color:CO.red}}>{cancelledFall.toLocaleString()}</p><p style={{fontSize:10,color:CO.dim}}>{cancelRateFall}% cancel rate</p></div>
+              </div>
+            </div>
+            <div style={{padding:"16px 18px",borderRadius:12,background:`${CO.green}0c`,border:`1px solid ${CO.border}`}}>
+              <p style={{fontSize:11,color:CO.green,fontWeight:700,textTransform:"uppercase",letterSpacing:".06em",marginBottom:10}}>{sS}</p>
+              <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8}}>
+                <div><p style={{fontSize:10,color:CO.muted,marginBottom:3}}>Total Bookings</p><p style={{fontSize:22,fontWeight:800,fontFamily:"'JetBrains Mono',monospace",color:CO.green}}>{st.toLocaleString()}</p></div>
+                <div><p style={{fontSize:10,color:CO.muted,marginBottom:3}}>Delivered</p><p style={{fontSize:22,fontWeight:800,fontFamily:"'JetBrains Mono',monospace",color:CO.green}}>{deliveredSpring.toLocaleString()}</p><p style={{fontSize:10,color:CO.dim}}>{st?((deliveredSpring/st)*100).toFixed(1):0}% of bookings</p></div>
+                <div><p style={{fontSize:10,color:CO.muted,marginBottom:3}}>Cancelled</p><p style={{fontSize:22,fontWeight:800,fontFamily:"'JetBrains Mono',monospace",color:CO.red}}>{cancelledSpring.toLocaleString()}</p><p style={{fontSize:10,color:CO.dim}}>{cancelRateSpring}% cancel rate</p></div>
+              </div>
+            </div>
           </div>
           <TotalFooter approvedAll={attendedAll} approvedFall={attendedFall} approvedSpring={attendedSpring} interactAll={uniqueAll} interactFall={uniqueFall} interactSpring={uniqueSpring} color={CO.purple} fS={fS} sS={sS} approvedLabel="✓ Exams Delivered — Unique Students"/>
         </>}
