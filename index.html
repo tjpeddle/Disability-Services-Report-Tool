@@ -252,11 +252,25 @@ function ImportTab({rawData,setRawData,testRoomData,setTestRoomData,testAccomDat
   return(<div className="fade-up">
     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}><h2 style={{fontSize:26,fontWeight:800}}>Import Your Data</h2><button onClick={onClearAll} style={{fontSize:12,padding:"6px 14px",borderRadius:8,background:"#2a1520",border:"1px solid #ef575760",color:CO.red,cursor:"pointer",fontWeight:600}}>🗑 Clear All Saved Data</button></div>
     <p style={{color:CO.muted,marginBottom:28}}>Upload .xlsx, .xlsm, .xls, or .csv files. Load all files for full reporting.</p>
-    {(rawData.length||testRoomData.length||testAccomData.length||apptData.length||caseNotesData.length||studentNotesData.length||incomingData.length)?<div style={{marginBottom:16,padding:"10px 16px",borderRadius:10,background:"#0d1f0d",border:"1px solid #22c58d40",display:"flex",alignItems:"center",gap:10}}>
-      <span style={{fontSize:18}}>💾</span>
-      <div>
-        <p style={{fontSize:13,fontWeight:700,color:CO.green,marginBottom:2}}>Previous session data restored from cache</p>
-        <p style={{fontSize:11,color:CO.muted}}>{[rawData.length&&`Academic/Housing: ${rawData.length.toLocaleString()} rows`,testRoomData.length&&`Exam Bookings: ${testRoomData.length.toLocaleString()}`,testAccomData.length&&`Testing Accom: ${testAccomData.length.toLocaleString()}`,apptData.length&&`Appointments: ${apptData.length.toLocaleString()}`,caseNotesData.length&&`Case Notes: ${caseNotesData.length.toLocaleString()}`,studentNotesData.length&&`Student Notes: ${studentNotesData.length.toLocaleString()}`,incomingData.length&&`Incoming: ${incomingData.length.toLocaleString()}`].filter(Boolean).join(" · ")}</p>
+    {(rawData.length||testRoomData.length||testAccomData.length||apptData.length||caseNotesData.length||studentNotesData.length||incomingData.length)?<div style={{marginBottom:16,padding:"14px 18px",borderRadius:12,background:"#0d1f0d",border:"1.5px solid #22c58d50",display:"flex",alignItems:"flex-start",gap:12}}>
+      <span style={{fontSize:22,marginTop:1}}>💾</span>
+      <div style={{flex:1}}>
+        <p style={{fontSize:13,fontWeight:700,color:CO.green,marginBottom:6}}>Previous session data restored from cache</p>
+        <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+          {[
+            {label:"Academic/Housing",val:rawData.length,key:"raw"},
+            {label:"Exam Bookings",val:testRoomData.length,key:"test"},
+            {label:"Testing Accom.",val:testAccomData.length,key:"testAccom"},
+            {label:"Appointments",val:apptData.length,key:"appt"},
+            {label:"Case Notes",val:caseNotesData.length,key:"caseNotes"},
+            {label:"Student Notes",val:studentNotesData.length,key:"studentNotes"},
+            {label:"Incoming",val:incomingData.length,key:"incoming"},
+          ].map(({label,val,key})=>val
+            ?<span key={key} style={{fontSize:11,padding:"3px 10px",borderRadius:20,background:"#22c58d20",border:"1px solid #22c58d40",color:CO.green,fontWeight:600}}>✓ {label}: {val.toLocaleString()}</span>
+            :<span key={key} style={{fontSize:11,padding:"3px 10px",borderRadius:20,background:"#ef575715",border:"1px solid #ef575730",color:"#ef7a7a"}}>⚠ {label}: needs re-import</span>
+          )}
+        </div>
+        <p style={{fontSize:10.5,color:CO.dim,marginTop:6}}>Large files (Academic/Housing, Testing Accom., Case Notes) may exceed browser cache limits — re-import those if shown above.</p>
       </div>
     </div>:null}
     <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:16,maxWidth:1100}}>
@@ -1549,7 +1563,17 @@ function App(){
   /* ── localStorage persistence helpers ── */
   const LS_KEYS={raw:"oars_raw",test:"oars_test",testAccom:"oars_testAccom",appt:"oars_appt",caseNotes:"oars_caseNotes",studentNotes:"oars_studentNotes",incoming:"oars_incoming",ay:"oars_ay"};
   const lsLoad=(key)=>{try{const v=localStorage.getItem(key);return v?JSON.parse(v):null;}catch(e){return null;}};
-  const lsSave=(key,val)=>{try{localStorage.setItem(key,JSON.stringify(val));}catch(e){console.warn("localStorage full — data not cached:",e.message);}};
+  const lsSave=(key,val)=>{
+    if(!val||!val.length){try{localStorage.removeItem(key);}catch(e){}return true;}
+    try{localStorage.setItem(key,JSON.stringify(val));return true;}
+    catch(e){
+      // Too large — try saving a trimmed version as a size hint, then clear
+      try{localStorage.removeItem(key);}catch(e2){}
+      console.warn("localStorage quota exceeded for",key,"— dataset too large to cache.");
+      return false;
+    }
+  };
+  const lsSizeOk=(val)=>{try{const s=JSON.stringify(val);return s.length<3000000;}catch(e){return false;}};
 
   const[rawData,setRawData]=useState(()=>lsLoad(LS_KEYS.raw)||[]);
   const[testRoomData,setTestRoomData]=useState(()=>lsLoad(LS_KEYS.test)||[]);
