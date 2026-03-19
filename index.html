@@ -315,7 +315,7 @@ function ExecTab({execStats,fS,sS,hasTest,hasAppt,hasNotes,hasIncoming,testRoomL
         <SC label={fS} value={fallTests} color={CO.orange}/>
         <SC label={sS} value={springTests} color={CO.yellow}/>
       </div>
-      {testAccomApproved!=null&&<div style={{padding:"10px 16px",borderRadius:10,background:`${CO.orange}0c`,border:`1px solid ${CO.orange}20`,marginBottom:8,fontSize:13,color:CO.muted}}>✎ <strong style={{color:CO.orange}}>{testAccomApproved.toLocaleString()}</strong> unique students approved for testing accommodations</div>}
+      {testAccomApproved!=null&&<div style={{padding:"10px 16px",borderRadius:10,background:`${CO.orange}18`,border:`1.5px solid ${CO.orange}60`,marginBottom:8,fontSize:14,fontWeight:600,color:CO.text}}>✎ <strong style={{color:CO.orange,fontSize:16}}>{testAccomApproved.toLocaleString()}</strong> unique students approved for testing accommodations</div>}
     </>}
     {(hasAppt||hasNotes)&&<><Div label="Direct & Indirect Service"/>
       <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:14,marginBottom:8}}>
@@ -324,7 +324,7 @@ function ExecTab({execStats,fS,sS,hasTest,hasAppt,hasNotes,hasIncoming,testRoomL
         <SC label="Indirect Contacts" value={hasNotes?notesCount:"—"} color={"#c57a22"}/>
         <SC label="Indirect Hours" value={notesHrs||"—"} color={"#c522a0"}/>
       </div>
-      {combinedHrs&&<div style={{padding:"10px 16px",borderRadius:10,background:`${CO.green}0c`,border:`1px solid ${CO.green}20`,marginBottom:8,fontSize:13,color:CO.muted}}>🕐 <strong style={{color:CO.green}}>{combinedHrs}</strong> combined service hours across direct &amp; indirect contacts</div>}
+      {combinedHrs&&<div style={{padding:"10px 16px",borderRadius:10,background:`${CO.green}18`,border:`1.5px solid ${CO.green}60`,marginBottom:8,fontSize:14,fontWeight:600,color:CO.text}}>🕐 <strong style={{color:CO.green,fontSize:16}}>{combinedHrs}</strong> combined service hours across direct &amp; indirect contacts</div>}
     </>}
     {hasIncoming&&<><Div label="🎓 Incoming New Students — Separate Population"/>
       <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:14,marginBottom:8}}>
@@ -1657,7 +1657,7 @@ function App(){
           <p style={{fontSize:11.5,color:CO.muted,lineHeight:1.6}}>1. Import data<br/>2. Review tabs<br/>3. <strong style={{color:CO.accent}}>Generate report</strong></p></div>
       </nav>
       <main style={{flex:1,padding:28,overflow:"auto"}}>
-        {tab==="import"&&<ImportTab rawData={rawData} setRawData={setRawData} testRoomData={testRoomData} setTestRoomData={setTestRoomData} testAccomData={testAccomData} setTestAccomData={setTestAccomData} apptData={apptData} setApptData={setApptData} caseNotesData={caseNotesData} setCaseNotesData={setCaseNotesData} studentNotesData={studentNotesData} setStudentNotesData={setStudentNotesData} incomingData={incomingData} setIncomingData={setIncomingData} iSt={iSt} setISt={setISt} ld={ld} setLd={setLd} onClearAll={()=>{if(!window.confirm("Clear all cached data? You will need to re-import your files."))return;[setRawData,setTestRoomData,setTestAccomData,setApptData,setCaseNotesData,setStudentNotesData,setIncomingData].forEach(fn=>fn([]));try{Object.values({raw:"oars_raw",test:"oars_test",testAccom:"oars_testAccom",appt:"oars_appt",caseNotes:"oars_caseNotes",studentNotes:"oars_studentNotes",incoming:"oars_incoming"}).forEach(k=>localStorage.removeItem(k));}catch(e){}setISt({});}}/>}}
+        {tab==="import"&&<ImportTab rawData={rawData} setRawData={setRawData} testRoomData={testRoomData} setTestRoomData={setTestRoomData} testAccomData={testAccomData} setTestAccomData={setTestAccomData} apptData={apptData} setApptData={setApptData} caseNotesData={caseNotesData} setCaseNotesData={setCaseNotesData} studentNotesData={studentNotesData} setStudentNotesData={setStudentNotesData} incomingData={incomingData} setIncomingData={setIncomingData} iSt={iSt} setISt={setISt} ld={ld} setLd={setLd} onClearAll={()=>{if(!window.confirm("Clear all cached data? You will need to re-import your files."))return;[setRawData,setTestRoomData,setTestAccomData,setApptData,setCaseNotesData,setStudentNotesData,setIncomingData].forEach(fn=>fn([]));try{Object.values({raw:"oars_raw",test:"oars_test",testAccom:"oars_testAccom",appt:"oars_appt",caseNotes:"oars_caseNotes",studentNotes:"oars_studentNotes",incoming:"oars_incoming"}).forEach(k=>localStorage.removeItem(k));}catch(e){}setISt({});}}/>}
         {tab==="summary"&&<ExecTab execStats={execStats} fS={fS} sS={sS} hasTest={testRoomData.length>0} hasAppt={apptData.length>0} hasNotes={caseNotesData.length>0||studentNotesData.length>0} hasIncoming={incomingData.length>0}/>}
         {tab==="academic"&&<AcadTab rawData={rawData} fS={fS} sS={sS}/>}
         {tab==="housing"&&<HousingTab rawData={rawData} fS={fS} sS={sS}/>}
